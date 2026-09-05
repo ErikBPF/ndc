@@ -1,11 +1,10 @@
 # ndc-tpch — Nested Data Compute
 
-`ndc-tpch` is a separate derived benchmark over **nested data layouts**:
-TPC-H (dbgen data + schema) is its seed. The suite measures query
-engines on flat TPC-H-derived Parquet and nested-layout transforms of
-the same data, and keeps every answer pinnable so a speedup can never
-hide a wrong result. **Ninho de Cobra** — the snake nest — for my
-Brazilian friends.
+`ndc-tpch` is a benchmark over **nested data layouts**, seeded by
+TPC-H (dbgen data + schema). It measures query engines on flat Parquet
+and nested-layout transforms of the same data, and keeps every answer
+pinnable so a speedup can never hide a wrong result. **Ninho de Cobra**
+— the snake nest — for my Brazilian friends.
 
 > The ndc-tpch suite is derived from the TPC Benchmark
 > TPC-H and as such is not comparable to published TPC-H results, as the
