@@ -157,7 +157,7 @@ case "${1:-}" in
     local_name=$3
     ws=${WS_ROOT:-$HOME/ndc-workspaces}/tpch-$local_name
     mkdir -p "$ws/data" "$ws/results"
-    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py check_size.py sizes.csv; do
+    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py check_size.py report.py sizes.csv; do
       cp "$f" "$ws/"
     done
     cp -r "$PWD/queries" "$ws/queries"
