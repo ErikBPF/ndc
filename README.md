@@ -47,19 +47,18 @@ must agree before any timing counts (row parity).
 | extended | 12 (6 pairs) | joins, CASE, IN-lists, string ops, correlated quantifiers as HOFs, top-N (window vs nested sort) |
 
 Query text lives in [`ndc/queries/`](ndc/queries/) as individual `.sql`
-files with manifests per set (`manifest-full.json`, the 20-query
-default kit; `manifest-depth.json`, the depth sweep) — the qgen
-convention of TPC-H.
+files with manifests per set (`manifest-full.json`, the full 24-query
+set; `manifest-depth.json`, the depth sweep) — the qgen convention of
+TPC-H.
 
 ## Answers
 
 Pinned qualification answers ship per scale factor in
 [`ndc/answers/`](ndc/answers/) (`.out` files, one per query, pipe
-separated). Row parity is enforced at run time — the nested side must
-agree with the flat side on every query before a timing counts, and a
-parity failure is recorded as a defect, not a result. The pinned answers
-are published for independent verification; wiring them into the
-automated validity gate is part of the planned evaluation-block API.
+separated) for independent verification; wiring them into the automated
+validity gate is part of the planned evaluation-block API. Row parity
+is enforced at run time; a parity failure is recorded as a defect, not
+a timing.
 
 ## Metrics
 
@@ -67,32 +66,23 @@ Per query and cell, the record carries: wall-time median over 3 runs,
 native/fallback share (a query that fell back to JVM execution is
 marked), row parity, CPU seconds, peak RSS, and cold-cache IO bytes
 (`cache: cold|warm|drop-failed` recorded per run; page cache is dropped
-between runs). Reported speedups are ratios of medians — no TPC
-Primary or Optional Metric is used.
+between runs). Reported speedups are ratios of medians.
 
 ## Fair use and disclosure
 
-Benchmarks derived from TPC-H. No comparison with official TPC results
-is made or implied; no TPC compliance claim is made. Engine versions,
-configurations, and host capacity are recorded per run, and all
+Results carry the prescribed disclaimer above wherever they are
+presented. No TPC Primary or Optional Metric is used; engine versions,
+configurations, and host capacity are recorded per run; and all
 deviations from the TPC-H Specification (schema layout, query text, run
 methodology, metrics) are declared in this repository and in each result
 record. See [NOTICE](NOTICE).
 
 ## Running
 
-See [`ndc/README.md`](ndc/README.md) for the full stage driver and the
-three profiles: `lite` (smoke, not citable), `full` (release discipline),
-`comet-default` (the shipped default kit ending in a generated family
-report).
-
-```sh
-./run.sh bootstrap 1 sf1        # new workspace for a scale point
-cd $WS_ROOT/tpch-sf1
-./run.sh build-scale            # dbgen → flat → nested → depths → formats
-./run.sh size-check             # assert row counts vs ndc/sizes.csv
-./run.sh comet-default          # default kit, cold-cache, parity gate, report
-```
+[`ndc/README.md`](ndc/README.md) documents the stage driver and the
+three profiles: `lite` (smoke, not citable), `full` (release
+discipline), `comet-default` (the shipped default kit ending in a
+generated family report).
 
 ## Structure
 
@@ -103,8 +93,8 @@ ndc/
   monitor.py        sidecar /proc sampler (tree CPU, peak RSS, IO bytes)
   write_fmt.py      writes the nested table sets to Iceberg / Delta
   report.py         per family × format verdict report
-  prepare sql       conv.sql, nested.sql, depths.sql (transforms) · parity.sql,
-                    ext_parity.sql (DuckDB verification suites)
+  conv.sql, nested.sql, depths.sql     data preparation transforms
+  parity.sql, ext_parity.sql           DuckDB verification suites
   queries/          24 .sql files + manifests (qgen convention)
   answers/          pinned per-query answers per scale factor
   bench.conf        cluster (D11) and storage (D12) targets
@@ -133,8 +123,8 @@ Per family on Parquet (vanilla → Comet):
 | depth 1–8 | 1.24x | 1.13x | 1.12x |
 | extended (manipulation) | 1.06x | 1.00x | 1.08x |
 
-The stable
-findings: Comet's advantage concentrates in native scan+aggregate and
-compounds with volume; the nested-manipulation family is its weak spot at
-any volume; fallback-flattened cells hide native-execution effects. Raw
-result records and the analysis live in the coordinating repository.
+The stable findings: Comet's advantage concentrates in native
+scan+aggregate and compounds with volume; the nested-manipulation family
+is its weak spot at any volume; fallback-flattened cells hide
+native-execution effects. Raw result records and the analysis live in
+the coordinating repository.
