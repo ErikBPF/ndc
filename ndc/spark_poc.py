@@ -25,9 +25,9 @@ def main():
     b = b.config("spark.ui.enabled", "false")
     b = b.config("spark.sql.parquet.datetimeRebaseModeInRead", "CORRECTED")
     if a.comet:
-        jar = "comet-spark-spark4.0_2.13-1.0.0.jar"
-        b = (b.config("spark.jars", jar)
-             .config("spark.plugins", "org.apache.spark.CometPlugin")
+        # jars come from spark-submit --jars (run.sh engine_flags); this only
+        # flips the Comet execution configs
+        b = (b.config("spark.plugins", "org.apache.spark.CometPlugin")
              .config("spark.shuffle.manager",
                      "org.apache.spark.sql.comet.execution.shuffle.CometShuffleManager")
              .config("spark.comet.explain.fallback.enabled", "true")
@@ -40,7 +40,6 @@ def main():
         spark.read.parquet(f"{a.data}/{t}.parquet").createOrReplaceTempView(t)
     if a.fmt == "parquet":
         spark.read.parquet(f"{a.data}/orders_nested.parquet").createOrReplaceTempView("orders_nested")
-        import glob
         for f in sorted(glob.glob(f"{a.data}/orders_depth*.parquet")):
             name = f.rsplit("/", 1)[1].replace(".parquet", "")
             spark.read.parquet(f).createOrReplaceTempView(name)
@@ -51,8 +50,7 @@ def main():
         for t in ["orders_nested"] + [f"orders_depth{d}" for d in range(1, 9)]:
             spark.read.format("delta").load(f"data_delta/{t}").createOrReplaceTempView(t)
 
-    import time as _t
-    t_start = _t.time()
+    t_start = time.time()
 
     with open(a.queries) as f:
         manifest = json.load(f)

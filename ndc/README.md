@@ -8,7 +8,7 @@ and disclaimer).
 
 | Path | Role |
 |---|---|
-| `run.sh` | Stage driver: `sanity`, `gen`, `conv`, `nested`, `parity`, `depths`, `setup`, `build-fmt <iceberg\|delta>`, `spark`, `bootstrap <sf> <name>`, `build-scale`, `lite`, `full`, `comet-default`, `report`, `size-check`, `depthsmoke` |
+| `run.sh` | Stage driver: `gen`, `conv`, `nested`, `parity`, `depths`, `setup`, `build-fmt <iceberg\|delta>`, `spark`, `bootstrap <sf> <name>`, `build-scale`, `lite`, `full`, `comet-default`, `report`, `size-check`, `depthsmoke` |
 | `spark_poc.py` | Runner: per-query timing, parity vs flat, native/fallback accounting, JSON records |
 | `monitor.py` / `merge_monitor.py` | Sidecar `/proc` sampler (tree CPU, peak RSS, IO bytes) merged per query window |
 | `write_fmt.py` | Writes the nested table sets to Iceberg / Delta |
@@ -19,6 +19,7 @@ and disclaimer).
 | `answers/sf0.0083/` | Pinned per-query answers at sf 0.0083 (`.out` files) |
 | `bench.conf` | Cluster (`CLUSTER=`) and storage (`FS=`) targets |
 | `sizes.csv` | Recorded dbgen row counts per scale factor (`size-check` reference) |
+| `check_size.py` | D10 sizing gate: fails the build if row counts drift from `sizes.csv` |
 
 ## Quickstart
 

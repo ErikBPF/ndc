@@ -102,10 +102,6 @@ matrix() { # $1 = runs ; $2 = drop-caches yes|no ; $3 = query manifest
 }
 
 case "${1:-}" in
-  sanity)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb < gen_sanity.sql &&
-      duckdb :memory: < sanity_check.sql'
-    ;;
   gen)
     nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < gen.sql && ls -la tpch.duckdb | awk "{print \$5, \$9}"'
     ;;
@@ -152,7 +148,7 @@ case "${1:-}" in
     tail -2 "results/buildfmt_$2.stdout"
     ;;
   spark)
-    # $2 = vanilla|comet ; $3 = fmt ; $4 = queries json ; $5 = runs ; $6 = drop-caches yes|no
+    # $2 = vanilla|comet ; $3 = fmt ; $4 = query manifest ; $5 = runs ; $6 = drop-caches yes|no
     spark_run "$2" "${3:-parquet}" "${4:-}" "${5:-3}" "${6:-no}"
     ;;
   bootstrap)
@@ -161,7 +157,7 @@ case "${1:-}" in
     local_name=$3
     ws=${WS_ROOT:-$HOME/ndc-workspaces}/tpch-$local_name
     mkdir -p "$ws/data" "$ws/results"
-    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py sizes.csv; do
+    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py check_size.py sizes.csv; do
       cp "$f" "$ws/"
     done
     cp -r "$PWD/queries" "$ws/queries"
@@ -183,7 +179,7 @@ case "${1:-}" in
     ;;
   full)
     # release discipline: all formats x engines, 3 runs, drop-caches, monitor
-    matrix 3 yes "${QUERIES:-queries/manifest-depth.json}"
+    matrix 3 yes "${QUERIES:-queries/manifest-full.json}"
     ;;
   comet-default)
     # D13: the default tpch-ndc kit for our DataFusion Comet work
@@ -194,16 +190,15 @@ case "${1:-}" in
     nix shell nixpkgs#python3 -c python3 report.py results results/report.md || true
     ;;
   size-check)
-    # D10: assert per-SF row counts against recorded dbgen output (sizes.csv)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb -c "
+    # D10: assert per-SF row counts against sizes.csv (sf parsed from gen.sql)
+    nix shell nixpkgs#duckdb -c bash -c 'duckdb -csv tpch.duckdb -c "
 SELECT (SELECT count(*) FROM lineitem) AS lineitem, (SELECT count(*) FROM orders) AS orders,
        (SELECT count(*) FROM part) AS part, (SELECT count(*) FROM customer) AS customer,
-       (SELECT count(*) FROM supplier) AS supplier, (SELECT count(*) FROM partsupp) AS partsupp;"' | tee results/size-check.txt
-    [ -f sizes.csv ] && echo "sizes.csv present: $(cat sizes.csv | head -2)" || \
-      echo "NOTE: sizes.csv absent — record this run's counts as the SF reference"
+       (SELECT count(*) FROM supplier) AS supplier, (SELECT count(*) FROM partsupp) AS partsupp;"' | tee results/size-check.csv
+    nix shell nixpkgs#python3 -c python3 check_size.py gen.sql results/size-check.csv sizes.csv
     ;;
   depthsmoke)
     nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < depths.sql && cat results/parity_depths.txt' | tail -1
     ;;
-  *) echo "usage: run.sh sanity|gen|conv|nested|parity|depths|setup|bootstrap <sf> <name>|build-scale|build-fmt <fmt>|spark <eng> <fmt> [manifest] [runs] [drop]|lite|full"; exit 1;;
+  *) echo "usage: run.sh gen|conv|nested|parity|depths|setup|bootstrap <sf> <name>|build-scale|build-fmt <fmt>|spark <eng> <fmt> [manifest] [runs] [drop]|lite|full|comet-default|report|size-check|depthsmoke"; exit 1;;
 esac
