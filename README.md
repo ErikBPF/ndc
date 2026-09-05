@@ -4,8 +4,8 @@
 TPC-H (dbgen data + schema) is its seed. The suite measures query
 engines on flat TPC-H-derived Parquet and nested-layout transforms of
 the same data, and keeps every answer pinnable so a speedup can never
-hide a wrong result. Our Brazilian friends know it as **Ninho de
-Cobra** — the snake nest.
+hide a wrong result. **Ninho de Cobra** — the snake nest — for my
+Brazilian friends.
 
 > The ndc-tpch suite is derived from the TPC Benchmark
 > TPC-H and as such is not comparable to published TPC-H results, as the
@@ -115,7 +115,25 @@ ndc/
 
 First campaign executed on a single 28-core host with local NVMe storage:
 sf 0.5, sf 1, sf 10 — Parquet / Iceberg / Delta × vanilla / Comet, all
-cells parity-green. The stable
+cells parity-green.
+
+Total speedup, 24 queries, medians of 3 cold-cache runs:
+
+| Total speedup | sf 0.5 | sf 1 | sf 10 |
+|---|---:|---:|---:|
+| Parquet | 1.20x | 1.18x | 1.27x |
+| Iceberg | 1.27x | 1.16x | 1.21x |
+| Delta | 1.14x | 1.05x | 1.13x |
+
+Per family on Parquet (vanilla → Comet):
+
+| Family | sf 0.5 | sf 1 | sf 10 |
+|---|---:|---:|---:|
+| built-in (scan+agg) | 1.67x | 2.04x | 2.47x |
+| depth 1–8 | 1.24x | 1.13x | 1.12x |
+| extended (manipulation) | 1.06x | 1.00x | 1.08x |
+
+The stable
 findings: Comet's advantage concentrates in native scan+aggregate and
 compounds with volume; the nested-manipulation family is its weak spot at
 any volume; fallback-flattened cells hide native-execution effects. Raw
