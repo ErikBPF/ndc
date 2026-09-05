@@ -29,7 +29,7 @@ esac
 SPARK41_BASE=${SPARK41_BASE:-$HOME/ndc-spark41}
 SPARK_HOME=$SPARK41_BASE/spark-4.1.3-bin-hadoop3
 JARDIR=$SPARK41_BASE/jars
-COMET_JAR=$JARDIR/comet-spark-spark4.1_2.13-1.0.0.jar
+COMET_JAR=${COMET_JAR:-$JARDIR/comet-spark-spark4.1_2.13-1.0.0.jar}
 ICEBERG_JAR=$JARDIR/iceberg-spark-runtime-4.1_2.13-1.11.0.jar
 # Delta 4.4.0 is binary-incompatible with Spark 4.1.3; 4.3.x verified.
 DELTA_JAR=${DELTA_JAR:-$JARDIR/delta-spark_2.13-4.3.1.jar}
