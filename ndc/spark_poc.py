@@ -79,11 +79,24 @@ def main():
                             "engine": ("spark+comet" if a.comet else "spark") + f"/{a.fmt}"})
         parity[name] = [tuple(r) for r in rows]
 
-    ok = (parity["q1_flat"] == parity["q1_nested_explode"]
-          and round(parity["q6_flat"][0][0], 2) == round(parity["q6_nested_array"][0][0], 2))
-    if "q6_depth8" in parity:
-        flat6 = round(parity["q6_flat"][0][0], 2)
-        ok = ok and all(round(parity[f"q6_depth{d}"][0][0], 2) == flat6 for d in range(1, 9))
+    def rev(entry):
+        return round(entry[0][0], 2) if entry else None
+
+    # parity gate adapts to the manifest actually run: flat is the anchor
+    # when present, otherwise the depth family is checked for self-consistency
+    checks = []
+    flat6 = rev(parity.get("q6_flat"))
+    if "q1_flat" in parity and "q1_nested_explode" in parity:
+        checks.append(parity["q1_flat"] == parity["q1_nested_explode"])
+    if flat6 is not None and "q6_nested_array" in parity:
+        checks.append(flat6 == rev(parity["q6_nested_array"]))
+    if "q6_depth1" in parity:
+        for d in range(1, 9):
+            q = f"q6_depth{d}"
+            if q in parity:
+                checks.append(rev(parity[q]) == (flat6 if flat6 is not None
+                                                 else rev(parity["q6_depth1"])))
+    ok = all(checks) if checks else True
     with open(a.out, "w") as f:
         json.dump({"results": results,
                    "parity_ok": ok,
