@@ -1,0 +1,1 @@
+SELECT count(*) AS n, sum(CASE WHEN p.p_type LIKE 'PROMO%' THEN l.l_extendedprice * (1 - l.l_discount) ELSE 0 END) AS promo_rev, sum(l.l_extendedprice * (1 - l.l_discount)) AS total_rev FROM lineitem l JOIN part p ON l.l_partkey = p.p_partkey

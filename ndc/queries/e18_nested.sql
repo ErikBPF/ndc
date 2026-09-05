@@ -1,0 +1,1 @@
+SELECT count(*) AS n FROM (SELECT reverse(array_sort(transform(lineitems, x -> x.l_extendedprice))) AS tops FROM orders_nested) t WHERE size(slice(tops, 1, 2)) > 0 AND size(filter(slice(tops, 1, 2), e -> e > 30000)) > 0

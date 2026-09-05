@@ -1,0 +1,1 @@
+SELECT count(*) AS n FROM orders_nested WHERE o_orderstatus = 'F' AND size(filter(lineitems, x -> x.l_receiptdate > x.l_commitdate)) > 0 AND size(filter(lineitems, x -> x.l_shipdate > x.l_commitdate)) = 0

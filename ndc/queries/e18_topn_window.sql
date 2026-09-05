@@ -1,0 +1,1 @@
+SELECT count(*) AS n FROM (SELECT l_orderkey FROM (SELECT l_orderkey, row_number() OVER (PARTITION BY l_orderkey ORDER BY l_extendedprice DESC) AS rn, l_extendedprice FROM lineitem) t WHERE rn <= 2 AND l_extendedprice > 30000 GROUP BY l_orderkey)

@@ -1,0 +1,1 @@
+SELECT count(*) AS n FROM orders o WHERE o.o_orderstatus = 'F' AND EXISTS (SELECT 1 FROM lineitem l WHERE l.l_orderkey = o.o_orderkey AND l.l_receiptdate > l.l_commitdate) AND NOT EXISTS (SELECT 1 FROM lineitem l2 WHERE l2.l_orderkey = o.o_orderkey AND l2.l_shipdate > l2.l_commitdate)

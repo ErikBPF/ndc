@@ -6,62 +6,15 @@ import time
 
 from pyspark.sql import SparkSession
 
-Q1_FLAT = """
-SELECT l_returnflag, l_linestatus,
-       sum(l_quantity) AS sum_qty, sum(l_extendedprice) AS sum_base_price,
-       sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-       sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-       count(*) AS cnt
-FROM lineitem
-WHERE l_shipdate <= DATE '1998-09-02'
-GROUP BY l_returnflag, l_linestatus ORDER BY l_returnflag, l_linestatus
-"""
-
-Q1_NESTED_EXPLODE = """
-SELECT li.l_returnflag, li.l_linestatus,
-       sum(li.l_quantity) AS sum_qty, sum(li.l_extendedprice) AS sum_base_price,
-       sum(li.l_extendedprice * (1 - li.l_discount)) AS sum_disc_price,
-       sum(li.l_extendedprice * (1 - li.l_discount) * (1 + li.l_tax)) AS sum_charge,
-       count(*) AS cnt
-FROM (SELECT explode(lineitems) AS li FROM orders_nested)
-WHERE li.l_shipdate <= DATE '1998-09-02'
-GROUP BY li.l_returnflag, li.l_linestatus ORDER BY li.l_returnflag, li.l_linestatus
-"""
-
-Q6_FLAT = """
-SELECT sum(l_extendedprice * l_discount) AS revenue
-FROM lineitem
-WHERE l_shipdate >= DATE '1994-01-01' AND l_shipdate < DATE '1995-01-01'
-  AND l_discount BETWEEN 0.05 AND 0.07 AND l_quantity < 24
-"""
-
-Q6_NESTED_ARRAY = """
-SELECT sum(agg) AS revenue
-FROM (SELECT aggregate(
-        filter(lineitems, x -> x.l_shipdate >= DATE '1994-01-01'
-              AND x.l_shipdate < DATE '1995-01-01'
-              AND x.l_discount BETWEEN 0.05 AND 0.07
-              AND x.l_quantity < 24),
-        CAST(0 AS DECIMAL(38, 4)),
-        (acc, x) -> acc + CAST(x.l_extendedprice * x.l_discount AS DECIMAL(38, 4))) AS agg
-      FROM orders_nested)
-"""
-
-QUERIES = [
-    ("q1_flat", Q1_FLAT),
-    ("q1_nested_explode", Q1_NESTED_EXPLODE),
-    ("q6_flat", Q6_FLAT),
-    ("q6_nested_array", Q6_NESTED_ARRAY),
-]
-
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--comet", action="store_true")
     p.add_argument("--data", default="data")
     p.add_argument("--out", required=True)
+    p.add_argument("--queries", default="queries/manifest-full.json",
+                   help="query manifest JSON {name: sql-file}")
     p.add_argument("--runs", type=int, default=3)
-    p.add_argument("--queries", default=None, help="JSON file {name: sql} merged into the built-in set")
     p.add_argument("--fmt", default="parquet", choices=["parquet", "iceberg", "delta"])
     p.add_argument("--drop-caches", action="store_true")
     a = p.parse_args()
@@ -101,14 +54,14 @@ def main():
     import time as _t
     t_start = _t.time()
 
-    queries = list(QUERIES)
-    if a.queries:
-        with open(a.queries) as f:
-            queries = queries + sorted(json.load(f).items())
+    with open(a.queries) as f:
+        manifest = json.load(f)
+    queries = sorted(manifest.items())  # (name, sql-file), deterministic order
 
     results = []
     parity = {}
-    for name, sql in queries:
+    for name, qfile in queries:
+        sql = open(qfile).read()
         rows = None
         for i in range(a.runs):
             cache = "warm"

@@ -67,7 +67,7 @@ dropcaches() {
   fi
 }
 
-spark_run() { # $1 = engine ; $2 = fmt ; $3 = queries json ; $4 = runs ; $5 = drop-caches yes|no
+spark_run() { # $1 = engine ; $2 = fmt ; $3 = query manifest ; $4 = runs ; $5 = drop-caches yes|no
   local eng=$1 fmt=$2 q=${3:-} runs=${4:-3} drop=${5:-no}
   local out=results/spark_${eng}_${fmt}.json
   local mon=results/monitor_${eng}_${fmt}.csv
@@ -89,8 +89,8 @@ spark_run() { # $1 = engine ; $2 = fmt ; $3 = queries json ; $4 = runs ; $5 = dr
   return $rc
 }
 
-matrix() { # $1 = runs ; $2 = drop-caches yes|no ; $3 = queries json
-  local runs=${1:-3} drop=${2:-yes} q=${3:-queries_depths.json}
+matrix() { # $1 = runs ; $2 = drop-caches yes|no ; $3 = query manifest
+  local runs=${1:-3} drop=${2:-yes} q=${3:-queries/manifest-depth.json}
   for fmt in parquet iceberg delta; do
     for eng in vanilla comet; do
       dropcaches >/dev/null
@@ -161,9 +161,10 @@ case "${1:-}" in
     local_name=$3
     ws=${WS_ROOT:-$HOME/ndc-workspaces}/tpch-$local_name
     mkdir -p "$ws/data" "$ws/results"
-    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql queries_depths.json monitor.py merge_monitor.py write_fmt.py; do
+    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py sizes.csv; do
       cp "$f" "$ws/"
     done
+    cp -r "$PWD/queries" "$ws/queries"
     printf "SET threads TO 8;\nSET memory_limit='24GB';\nINSTALL tpch; LOAD tpch;\nCALL dbgen(sf = %s);\n" "$2" > "$ws/gen.sql"
     chmod +x "$ws/run.sh"
     echo "BOOTSTRAPPED $ws (sf=$2)"
@@ -177,16 +178,16 @@ case "${1:-}" in
     # during-work smoke: data must exist; 1 run; parquet only; both engines
     ./run.sh depthsmoke
     for eng in vanilla comet; do
-      spark_run "$eng" parquet "${QUERIES:-queries_depths.json}" 1 no
+      spark_run "$eng" parquet "${QUERIES:-queries/manifest-depth.json}" 1 no
     done
     ;;
   full)
     # release discipline: all formats x engines, 3 runs, drop-caches, monitor
-    matrix 3 yes "${QUERIES:-queries_depths.json}"
+    matrix 3 yes "${QUERIES:-queries/manifest-depth.json}"
     ;;
   comet-default)
     # D13: the default tpch-ndc kit for our DataFusion Comet work
-    matrix 3 yes "${QUERIES:-queries_full.json}"
+    matrix 3 yes "${QUERIES:-queries/manifest-full.json}"
     nix shell nixpkgs#python3 -c python3 report.py results results/report.md || true
     ;;
   report)
@@ -204,5 +205,5 @@ SELECT (SELECT count(*) FROM lineitem) AS lineitem, (SELECT count(*) FROM orders
   depthsmoke)
     nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < depths.sql && cat results/parity_depths.txt' | tail -1
     ;;
-  *) echo "usage: run.sh sanity|gen|conv|nested|parity|depths|setup|bootstrap <sf> <name>|build-scale|build-fmt <fmt>|spark <eng> <fmt> [queries] [runs] [drop]|lite|full"; exit 1;;
+  *) echo "usage: run.sh sanity|gen|conv|nested|parity|depths|setup|bootstrap <sf> <name>|build-scale|build-fmt <fmt>|spark <eng> <fmt> [manifest] [runs] [drop]|lite|full"; exit 1;;
 esac

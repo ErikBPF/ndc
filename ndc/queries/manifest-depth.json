@@ -1,0 +1,10 @@
+{
+ "q6_depth1": "queries/q6_depth1.sql",
+ "q6_depth2": "queries/q6_depth2.sql",
+ "q6_depth3": "queries/q6_depth3.sql",
+ "q6_depth4": "queries/q6_depth4.sql",
+ "q6_depth5": "queries/q6_depth5.sql",
+ "q6_depth6": "queries/q6_depth6.sql",
+ "q6_depth7": "queries/q6_depth7.sql",
+ "q6_depth8": "queries/q6_depth8.sql"
+}
