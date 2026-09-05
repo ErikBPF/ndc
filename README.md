@@ -1,6 +1,5 @@
-# ndc-tpch — Nested Data Compute
-
-Codename: **Ninho de Cobra**.
+# ndc-tpch — Nested Data Compute (or **Ninho de Cobra** pros meus amigos
+Brasileiros)
 
 `ndc-tpch` is a separate derived benchmark over **nested data layouts**:
 TPC-H (dbgen data + schema) is its seed. The suite measures query
@@ -8,7 +7,7 @@ engines on flat TPC-H-derived Parquet and nested-layout transforms of
 the same data, and keeps every answer pinnable so a speedup can never
 hide a wrong result.
 
-> The ndc-tpch suite (Ninho de Cobra) is derived from the TPC Benchmark
+> The ndc-tpch suite is derived from the TPC Benchmark
 > TPC-H and as such is not comparable to published TPC-H results, as the
 > ndc-tpch results do not comply with the TPC-H Specification.
 

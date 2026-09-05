@@ -1,4 +1,4 @@
-ndc-tpch — Nested Data Compute (codename: Ninho de Cobra)
+ndc-tpch — Nested Data Compute
 
 This suite is a benchmark derived from the TPC Benchmark TPC-H and as
 such is not comparable to published TPC-H results, as the ndc-tpch
