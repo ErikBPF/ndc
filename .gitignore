@@ -1,0 +1,9 @@
+# data and build outputs (workspace pattern: one dir per SF point)
+data/
+data_delta/
+data_iceberg_wh/
+spark-warehouse/
+results/
+tpch.duckdb
+*.stdout
+__pycache__/
