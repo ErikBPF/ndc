@@ -20,6 +20,12 @@ Parquet update/delete are unsupported, not zero-duration successes.
 The bundled Spark runner requires Nix with flakes enabled, network access for initial tool/artifact downloads,
 and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java and
 ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
+Setup tries Apache’s CDN, then its download server and Archive, abandoning
+stalled or slow transfers and checking the pinned checksum before installation.
+Checksum mismatches fail immediately; they do not trigger a different source.
+CI caches only downloaded archives/JARs under the artifact-lock identity, verifies
+them again during setup, and extracts the runtime afresh. Extracted runtime trees
+are not restored from the CI cache.
 
 ```sh
 ./ndc/run.sh check
