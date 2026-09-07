@@ -3,8 +3,6 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
-import random
-import re
 import subprocess
 import sys
 import time
@@ -13,6 +11,7 @@ import uuid
 from pyspark.sql import SparkSession
 
 from mutations import inventory, prepare
+from schedule import build_plan, load_manifest, validate_plan, PHASES
 from provenance import dataset, environment, identity, plans, format_identity, limits
 from shapes import full_answer, iter_full_answer
 from validation import canonical, read_answer, validate, materialize, distributed_validate
@@ -27,6 +26,8 @@ def positive(value):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--comet',action='store_true')
+    p.add_argument('--plan')
+    p.add_argument('--phase',choices=PHASES,default='matrix')
     p.add_argument('--validation',choices=['collect','distributed'],default='collect')
     p.add_argument('--data',default='data')
     p.add_argument('--out',required=True)
@@ -51,18 +52,16 @@ def main():
     output=Path(a.out).resolve()
     if output.exists(): p.error('output already exists; choose a fresh campaign')
     output.parent.mkdir(parents=True,exist_ok=True)
-    manifest=json.loads(Path(a.queries).read_text())
-    if not manifest: p.error('empty manifest')
-    for name,spec in manifest.items():
-        if not re.fullmatch(r'[a-z][a-z0-9_]*',name): p.error('invalid query name')
-        if not isinstance(spec,dict) or not {'sql','reference','family','operation','layout','ordered'}<=spec.keys():
-            p.error(f'{name}: missing explicit query contract')
-        for key in ('sql','reference'):
-            path=(root/'ndc'/spec[key]).resolve()
-            if not path.is_relative_to(root/'ndc/queries'): p.error('query path outside queries/')
-            spec[key+'_text']=path.read_text()
-    if a.streams>1 and any('action' in q for q in manifest.values()):
-        p.error('query streams support read workloads; maintenance runs separately')
+    if a.plan:
+        plan=validate_plan(json.loads(Path(a.plan).read_text()))
+        settings={'runs':a.runs,'streams':a.streams,'warmups':a.warmups,'seed':a.seed}
+        if plan['settings']!=settings or plan['phase']!=a.phase:
+            p.error('arguments differ from frozen schedule')
+    else:
+        manifest=load_manifest(root/'ndc',a.queries)
+        plan=build_plan(manifest,a.runs,a.streams,a.warmups,a.seed,a.phase)
+        with open(output.parent/(output.stem+'_plan.json'),'x') as f:json.dump(plan,f,indent=2)
+    manifest=plan['manifest']
     builder=(SparkSession.builder.appName('ndc').config('spark.sql.session.timeZone','UTC')
              .config('spark.sql.shuffle.partitions','8').config('spark.ui.enabled','false')
              .config('spark.sql.parquet.datetimeRebaseModeInRead','CORRECTED')
@@ -94,9 +93,10 @@ def main():
         if marker['dataset_id']!=base_id or marker['format_id']!=physical_id:
             raise ValueError('stale or modified table-format inputs; rebuild the format')
     record={'schema_version':2,'campaign_id':a.campaign_id or str(uuid.uuid4()),
-            'dataset_id':base_id,'format_id':physical_id,'manifest_id':identity(manifest),'manifest':manifest,
+            'dataset_id':base_id,'format_id':physical_id,'manifest_id':identity(manifest),'manifest':manifest,'plan':plan,'plan_id':identity(plan),
             'comparison':{'runs':a.runs,'streams':a.streams,'warmups':a.warmups,'seed':a.seed,
                           'cache':a.cache,'layout_mode':a.layout_mode,'sf':a.sf,'validation':a.validation,
+                          'phase':a.phase,'stream_model':plan['stream_model'],
                           'host':env['host'],'cpu_affinity':env['cpu_affinity'],'cgroup_limits':limits(),
                           'master':spark.sparkContext.master,'driver_memory':spark.sparkContext.getConf().get('spark.driver.memory')},
             'environment':env,'command':sys.argv,'engine':'comet' if a.comet else 'vanilla','fmt':a.fmt,
@@ -194,20 +194,20 @@ def main():
             finally:
                 if distributed and actual is not None:actual.unpersist()
             return result
-        for warmup in range(a.warmups):
-            for name in manifest:
-                result=execute(name,warmup,0,True)
-                if result['status'] not in ('ok','unsupported'):
-                    record['results'].append(result)
-                    raise ValueError(f'warm-up failed: {name}: {result.get("error", "invalid")}')
+        for sample in plan['warmups']:
+            name=sample['q']
+            result=execute(name,sample['run'],sample['stream'],True)
+            if result['status'] not in ('ok','unsupported'):
+                record['results'].append(result)
+                raise ValueError(f'warm-up failed: {name}: {result.get("error", "invalid")}')
         def stream_run(stream):
             results=[]
-            for run in range(a.runs):
-                order=list(manifest);random.Random(a.seed+stream*1000000+run).shuffle(order)
-                for name in order:
-                    result=execute(name,run,stream)
-                    results.append(result)
-                    print(f'{name} stream={stream} run={run} {result["status"]}',flush=True)
+            for sample in plan['samples']:
+                if sample['stream']!=stream:continue
+                name,run=sample['q'],sample['run']
+                result=execute(name,run,stream)
+                results.append(result)
+                print(f'{name} stream={stream} run={run} {result["status"]}',flush=True)
             return results
         with ThreadPoolExecutor(max_workers=a.streams) as pool:
             for results in pool.map(stream_run,range(a.streams)): record['results'].extend(results)

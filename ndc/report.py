@@ -6,10 +6,13 @@ import statistics
 import sys
 
 from provenance import identity
+from schedule import validate_plan
 
 
 def load_cells(directory):
     cells = {}
+    plan_path=Path(directory)/'plan.json'
+    frozen=json.loads(plan_path.read_text()) if plan_path.exists() else None
     for path in sorted(Path(directory).glob('spark_*.json')):
         cell = json.loads(path.read_text())
         if cell.get('schema_version') != 2 or cell.get('parity_ok') is not True:
@@ -19,6 +22,17 @@ def load_cells(directory):
         manifest = cell.get('manifest')
         if not isinstance(manifest, dict) or not manifest or identity(manifest) != cell.get('manifest_id'):
             raise ValueError(f'{path.name}: missing or inconsistent manifest')
+        if 'phase' in cell['comparison'] or 'plan' in cell:
+            plan=validate_plan(cell['plan'])
+            if (identity(plan)!=cell.get('plan_id') or plan['manifest']!=manifest
+                    or plan['phase']!=cell['comparison'].get('phase')
+                    or plan['stream_model']!=cell['comparison'].get('stream_model')
+                    or any(cell['comparison'].get(k)!=v for k,v in plan['settings'].items())
+                    or (frozen is not None and plan!=frozen)):
+                raise ValueError(f'{path.name}: incompatible frozen plan')
+            observed=[{k:r[k] for k in ('q','run','stream')} for r in cell['results']]
+            if observed!=plan['samples']:
+                raise ValueError(f'{path.name}: execution order differs from frozen schedule')
         samples = set()
         for r in cell['results']:
             key = (r['q'], r['run'], r.get('stream', 0))
@@ -75,7 +89,9 @@ def load_cells(directory):
 
 
 def render(cells):
+    comparison=next(iter(cells.values()))['comparison']
     lines = ['# NDC results', '',
+             f'Phase: {comparison.get("phase", "legacy")}; stream model: {comparison.get("stream_model", "unspecified")}; validation: {comparison.get("validation", "collect")}.', '',
              'TPC-H-derived; TPC-DS-inspired. Not comparable to published TPC results.', '',
              'Ratios are Spark / Comet medians. No overall score or significance verdict.', '',
              '| Format | Family | Query | Spark ms | Comet ms | Ratio | Samples | Range ms (Spark / Comet) |',

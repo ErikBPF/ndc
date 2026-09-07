@@ -9,11 +9,11 @@ workloads, phase sequencing, stream behavior and result artifacts.
 | Concern | TPC-DS | NDC today |
 |---|---|---|
 | Data preparation | `dsdgen`; generation and database load | `bootstrap` + `build-scale`: DuckDB TPC-H generation, exports, nested layouts, synthetic shapes and format copies |
-| Query preparation | `dsqgen`; 99 parameterized templates | Explicit manifests and fixed SQL; `SEED` changes permutations and synthetic data, not query parameters |
-| Serial measurement | Power Test | `matrix` with `STREAMS=1`; selected read/write workloads and repeated samples |
-| Concurrent measurement | One session per stream | `throughput`: threads share one Spark session; default two streams of the two DS-inspired queries |
-| Maintenance | Generated refresh sets | Selectable update/delete/compaction workloads on fresh per-sample targets |
-| Qualification | Reference-answer validation | `qualify` checks 24 tiny pins through DuckDB; candidate-engine validation happens during `matrix`/`spark` |
+| Query preparation | `dsqgen`; 99 parameterized templates | Explicit manifests and fixed SQL; Independent `DATA_SEED` and `QUERY_SEED`; fixed SQL and expanded schedules in `plan.json` |
+| Serial measurement | Power Test | `latency` selects serial reads; `matrix` separately selects engine/format cells |
+| Concurrent measurement | One session per stream | `shared-throughput`: threads share one Spark session; default two streams of the two DS-inspired queries |
+| Maintenance | Generated refresh sets | `maintenance`: update/delete/compaction workloads on fresh per-sample targets |
+| Qualification | Reference-answer validation | `qualify-references` checks pins; `qualify-engine` combines data gates and all candidate workloads |
 | Reporting | Specified performance metrics and disclosure | Per-query medians, ranges, descriptive totals, source/data identities and evidence bundles; no TPC metric |
 
 TPC-DS prescribes Load → Power → Throughput 1 → Maintenance 1 → Throughput 2 →
@@ -27,32 +27,27 @@ materialization; throughput elapsed time also includes validation gaps between
 queries. These measurements serve different purposes from a protocol-compatible
 TPC-DS driver.
 
-## Recommended changes, in priority order
+## Implemented interface improvements
 
-1. **Make suite and phase names unambiguous.** The root suite table calls `full`
-   the historical 24-query membership, while `run.sh full` selects all 46 workloads.
-   Expose a clear suite selector and distinguish serial read measurement from an
-   engine/format matrix. Preserve existing commands as documented compatibility
-   aliases if the interface changes.
-2. **Separate harness checks from benchmark qualification.** `test` currently runs
-   Python and shell checks; `qualify` checks reference pins, not a selected engine.
-   A candidate qualification command should combine sizing, structural checks,
-   reference pins and engine execution, with one final pass/fail record.
-3. **Freeze the execution schedule before running.** Retain the expanded workload,
-   query order, stream IDs, repetitions and any parameter bindings as an artifact.
-   Existing manifests already retain SQL and references in results. Split data and
-   query seeds when their variation becomes independently selectable; keep fixed
-   selectivity cases fixed unless a parameter sweep is explicitly requested.
-4. **Keep shared-session throughput clearly named.** Introduce separate sessions or
-   clients only when measuring independent-client concurrency is a goal. Do not
-   imply that adding threads alone implements the TPC-DS stream contract.
-5. **Add an optional phase plan only if needed.** A plan could orchestrate load,
-   serial reads, concurrent reads and maintenance using existing primitives. Do
-   not rename isolated scratch-table mutations as database refresh runs or add an
-   official-looking aggregate score.
+- **Explicit membership:** `SUITE=tpch` selects 24 historical queries; `SUITE=read`
+  selects 39 read/compute cases; `SUITE=all` selects 46 workloads. Custom `QUERIES`
+  overrides suite selection. Existing commands remain compatibility aliases.
+- **Separate phases:** `check`, `qualify-references`, `qualify-engine`, `latency`,
+  `shared-throughput`, `maintenance`, and `matrix` identify their actual work.
+  Candidate qualification emits one final verdict after sizing, structural checks,
+  reference pins, parity and engine execution; failed gates stop the sequence.
+- **Frozen schedules:** `plan.json` is written before Spark starts. It retains full
+  SQL, references, query order, stream IDs, repetitions and warm-ups. Results embed
+  the plan identity; reports reject order or coverage drift. `plan <out.json>`
+  previews a matrix schedule without execution.
+- **Independent seeds:** `DATA_SEED` controls synthetic generation; `QUERY_SEED`
+  controls permutations. `SEED` remains the fallback. Fixed selectivity cases remain
+  fixed; there is no implicit parameter sweep.
 
-These are recommendations, not implemented CLI commands. The immediate priority
-is naming and qualification semantics; a new driver framework is unnecessary.
+The shared-session model remains explicit; separate clients are unnecessary for
+this nested-engine comparison. There is no new multi-phase driver framework or
+TPC-DS refresh protocol. The phase commands compose from the existing primitives,
+and no official-looking aggregate score is introduced.
 
 ## Test disclosure
 

@@ -27,6 +27,20 @@ class ProvenanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'dataset'):
                 module('bundle').create(campaign, root/'source', root/'bundles')
 
+    def test_bundle_handles_nested_qualification_campaign(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);campaign=root/'results/qualification/campaign';campaign.mkdir(parents=True)
+            data=root/'data';data.mkdir()
+            inventory={'files':{},'dataset_id':module('provenance').identity({})}
+            (data/'dataset.json').write_text(json.dumps(inventory))
+            (campaign/'spark_vanilla_parquet.json').write_text(json.dumps({'dataset_id':inventory['dataset_id']}))
+            (campaign.parent/'qualification.json').write_text('{"status":"ok"}')
+            archive=module('bundle').create(campaign,root/'source',root/'bundles')
+            import tarfile
+            with tarfile.open(archive) as tar:
+                self.assertIn('dataset/dataset.json',tar.getnames())
+                self.assertIn('qualification/qualification.json',tar.getnames())
+
     def test_evidence_bundle_has_checksums_and_sources(self):
         bundle=module('bundle')
         self.assertTrue(hasattr(bundle,'create'),'evidence bundler missing')

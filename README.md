@@ -15,12 +15,13 @@ Synthetic shape fixtures complement the TPC-H data; they do not alter its entiti
 
 | Suite | Cases | Purpose |
 |---|---:|---|
-| `full` | 24 | Historical TPC-H-derived query membership; corrected complete validation and top-N semantics |
-| `scan` / `compute` / `depth` | subsets of `full` | Projection controls, manipulation, and singleton-wrapper depth isolation |
+| `tpch` | 24 | Historical TPC-H-derived query membership; corrected complete validation and top-N semantics |
+| `scan` / `compute` / `depth` | subsets of `tpch` | Projection controls, manipulation, and singleton-wrapper depth isolation |
 | `shapes` | 13 | Leaf/multiple/full projection, selectivity, nulls, fan-out, branching, maps, zipped arrays, quantifiers, regrouping, top-N |
 | `ds` | 2 | Dimension join + ranking; sales/returns collections + union + rollup |
 | `write` | 4 | Fresh materialization, nested transformation, flat-to-nested construction, append |
 | `maintenance` | 3 | Update, delete, compaction; unsupported operations explicitly recorded |
+| `read` | 39 | All read/compute cases, excluding writes and maintenance |
 | `all` | 46 | All of the above, without counting subset manifests twice |
 
 Reference engines: Spark 4.1.3 and Spark 4.1.3 with DataFusion Comet 1.0.0.
@@ -35,12 +36,12 @@ and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java an
 ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
 
 ```sh
-./ndc/run.sh test
+./ndc/run.sh check
 ./ndc/run.sh setup
 ./ndc/run.sh bootstrap 0.0083 tiny
 export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
 ./ndc/run.sh build-scale
-RUNS=1 WARMUPS=0 ./ndc/run.sh matrix       # qualification, not a performance claim
+./ndc/run.sh qualify-engine vanilla parquet # all 46 cases plus prerequisite gates
 nix develop "path:$PWD/nix" -c python3 tests/integration.py
 ```
 
@@ -50,6 +51,14 @@ record allocated CPU/process memory limits when comparing engines. Use `SPARK_MA
 `SPARK_DRIVER_MEM` to fit your machine. The tiny qualification scale is intentionally
 not a TPC publication scale.
 
+Use `SUITE=tpch ./ndc/run.sh latency` for serial reads,
+`./ndc/run.sh shared-throughput` for shared-session concurrency, and
+`./ndc/run.sh maintenance` for update/delete/compaction. `matrix` compares selected
+engine/format cells. `test`, `full`, `comet-default`, `throughput`, and `qualify`
+remain compatibility aliases; prefer the explicit commands above.
+
+Every campaign freezes its SQL and execution order in `plan.json` before Spark
+starts. Reports reject missing, changed or out-of-order planned samples.
 Every campaign has its own directory under `$NDC_WORKSPACE/results/`. Existing
 result files are never overwritten. `lite` cannot replace a previous full campaign.
 Sources execute from this checkout; workspaces contain data/configuration, not stale

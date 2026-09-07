@@ -14,7 +14,11 @@ validation are outside its timer. Source scans are included in fresh writes.
 Input preparation, reference computation, JVM startup, and declared warm-ups are
 excluded. Every warm-up and every measured repetition must validate.
 
-Queries use recorded seeded permutations for every repetition and stream. Engine
+Queries consume a schedule frozen before Spark startup. `plan.json` retains full
+SQL, references, warm-ups and seeded permutations for every repetition and stream.
+Cells embed the same plan; reports check its identity and actual sample order.
+`QUERY_SEED` controls query order independently of synthetic `DATA_SEED`; `SEED`
+is the legacy fallback for both. Fixed SQL literals are not randomized. Engine
 order alternates across format cells. Separate-process engine cells still have
 order effects; this is not per-repetition interleaving across engines. Use repeated
 campaigns with reversed `ENGINES` order for performance claims. `STREAMS>1` runs

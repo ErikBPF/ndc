@@ -112,4 +112,4 @@ reporter. They were not rewritten to satisfy the revised validity gate.
 
 The revised campaign bundle and SHA-256 sidecar are retained beside the campaign
 and copied to ignored `results/validation/` locally. Archive and every member
-checksum passed; the measured source inventory matches the current working tree.
+checksum passed; the measured source inventory matched the reviewed source snapshot at verification.
