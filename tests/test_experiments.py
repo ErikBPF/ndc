@@ -155,6 +155,21 @@ class ExperimentTests(unittest.TestCase):
             metadata=module('provenance').candidate_metadata()
         self.assertEqual(metadata,{'label':'head','revision':'abc','build_profile':'release'})
 
+    def test_invalid_inherited_intent_fails_before_creating_output(self):
+        import contextlib
+        import io
+        from unittest.mock import MagicMock, patch
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp)/'result.json';errors=io.StringIO()
+            with patch.dict(sys.modules,{'pyspark':MagicMock(),'pyspark.sql':MagicMock()}):
+                runner=module('spark_poc')
+                runner.SparkSession.builder.appName.side_effect=AssertionError('invalid intent reached Spark startup')
+            with patch.dict(os.environ,{'NDC_RUN_INTENT':'typo'}), patch.object(sys,'argv',['spark_poc','--out',str(out)]), contextlib.redirect_stderr(errors):
+                with self.assertRaises(SystemExit) as raised:runner.main()
+            self.assertEqual(raised.exception.code,2)
+            self.assertIn('intent',errors.getvalue())
+            self.assertEqual(list(Path(tmp).iterdir()),[])
+
     def test_qualification_overrides_inherited_performance_intent(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);(root/'scale.txt').write_text('0.0083')

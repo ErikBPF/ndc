@@ -12,7 +12,7 @@ NDC does not generate the DS schema or execute its 99-query suite.
 
 Workload IDs, logical data, expected results and ordering/null semantics define
 the benchmark across engines. SQL files and storage operations in this repository
-are the current Spark implementation; another engine may translate them while
+are the bundled Spark implementation; another engine may translate them while
 preserving those contracts. See [engine integration](engines.md).
 
 ## Data contracts
@@ -83,5 +83,5 @@ already compact data may do no work; disclose before/after storage and file coun
 NDC does not silently replace unsupported transactions with a full-table rewrite.
 
 Single-stream query latency, concurrent read streams, and maintenance are distinct
-experiments. The current runner rejects cold-cache concurrent streams and concurrent
+experiments. The bundled runner rejects cold-cache concurrent streams and concurrent
 maintenance. Other runners must declare their supported execution combinations.

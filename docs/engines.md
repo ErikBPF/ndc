@@ -1,7 +1,7 @@
 # Benchmark contract and engine implementations
 
 NDC is intended for multiple query engines. Spark is the initial implementation
-and the current development use case. Comet is an execution mode within Spark;
+and a development use case. Comet is an execution mode within Spark;
 neither Spark APIs nor its session model define the benchmark’s scope.
 
 ## Engine scripts
@@ -14,7 +14,7 @@ For named result comparisons and balanced command execution, see
 [candidate experiments](experiments.md). These reuse the existing result contract;
 they do not add an engine execution plugin API.
 
-For the bundled runner, see [Comet PR and SF1 validation](comet-validation.md).
+For the bundled runner, see [Comet change validation](comet-validation.md).
 
 Each implementation documents its own dependencies, supported formats, execution
 settings and qualification commands. The table lists scripts available in this
@@ -47,12 +47,12 @@ Cross-engine comparisons require equivalent semantics and measurement boundaries
 matching workload names alone is insufficient. Materialization in driver memory
 and executor disk materialization are different timing modes.
 
-## Current implementation boundaries
+## Implementation boundaries
 
 The repository does not yet provide a generic runner plugin API. Adding a value to
-`ENGINES` does not add an engine. The following code is Spark-specific today:
+`ENGINES` does not add an engine. The following code is Spark-specific:
 
-| Component | Current constraint |
+| Component | Constraint |
 |---|---|
 | [CLI](../ndc/run.sh) and [qualification](../ndc/qualification.py) | Launch Spark; accept `vanilla` and `comet` |
 | [Query execution](../ndc/spark_poc.py) | Spark SQL, sessions, plans and output handling |
@@ -79,7 +79,7 @@ Add a runnable qualification test, including a wrong-answer case, before publish
 measurements. Extend orchestration and reporting for the new engine explicitly:
 separate semantic workload identity from dialect-specific query identity, record
 engine/version without assuming Spark, and select comparison baselines explicitly.
-Do not label another engine’s output as `vanilla` to pass the current report gate.
+Do not label another engine’s output as `vanilla` to pass the report gate.
 Add writes, maintenance and concurrency as supported capabilities with their own
 validated semantics and disclosed execution model.
 

@@ -31,10 +31,10 @@ scale uses equivalent reference queries.
 
 SF1 can expose scan, projection, nested computation and resource-limit defects.
 It does not establish TPC compliance, performance significance, deletion-vector
-coverage or execution of a particular native operator. PR validation must pair
+coverage or execution of a particular native operator. Change validation must pair
 answer checks with the relevant upstream regression and plan assertions.
 
-## Review priorities
+## Extension principles
 
 Preserve workload semantics, exact validation and reproducibility before adding
 more queries. Keep engine-specific execution and diagnostics separate from the

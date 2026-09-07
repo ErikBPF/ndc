@@ -5,7 +5,7 @@ NDC is TPC-H-derived and TPC-DS-inspired; see the [root README](../README.md) an
 
 This guide covers the bundled Spark runner, including Comet. Its CLI choices and
 local deployment limits describe this implementation, not the benchmark contract.
-See [other engines](../docs/engines.md) for porting requirements and current gaps.
+See [other engines](../docs/engines.md) for porting requirements and implementation gaps.
 
 Run commands from the repository root. `run.sh` enters the locked Nix environment.
 `NDC_WORKSPACE` selects data/configuration; code stays in the pinned checkout.
@@ -186,7 +186,7 @@ and ordered comparison, stable answer identities, write round trips without driv
 collection, and validation above a 1 MiB driver result limit.
 
 See [the TPC-DS interface comparison](../docs/test-interface.md) for phase mappings
-and current interface gaps.
+and interface gaps.
 
 ## Frozen execution schedules
 
@@ -229,7 +229,7 @@ Use absolute workspace and artifact paths. Each candidate must select one engine
 and one format. Prepare and qualify the data/candidates before an experiment.
 
 ```sh
-export NDC_WORKSPACE="$PWD/workspaces/tpch-review"
+export NDC_WORKSPACE="$PWD/workspaces/tpch-validation"
 export FORMATS=iceberg SUITE=read
 export NDC_CPU_LIMIT=4 NDC_MEMORY_LIMIT=16G
 ./ndc/run.sh experiment candidates.json --out experiment --mode performance \

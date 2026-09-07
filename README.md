@@ -69,9 +69,4 @@ immutable artifact bundle, including source identity, raw samples, plans and
 checksums. Results from another harness revision require qualification under that
 revision’s measurement and validity rules.
 
-<details>
-<summary>An Easter egg in the initials</summary>
-
-NDC also hides “Ninho de Cobra” — Portuguese for “snake’s nest.”
-
-</details>
+NDC also stands for “Ninho de Cobra,” a nickname for the benchmark for my Brazilian friends.

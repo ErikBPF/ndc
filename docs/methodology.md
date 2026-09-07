@@ -6,7 +6,7 @@ Results are not comparable to published TPC-H/TPC-DS results; no official TPC
 primary or optional performance metric is calculated.
 
 The workload semantics and correctness requirements apply across engines. The
-timing mechanisms, resource sampler and result schema below describe the current
+timing mechanisms, resource sampler and result schema below describe the bundled
 Spark runner. Other implementations must disclose their execution and measurement
 model; see [engine integration](engines.md).
 
@@ -63,7 +63,7 @@ rows, nulls, duplicate multiplicity, and declared ordering. Decimal precision is
 preserved. Runtime exceptions, wrong answers, incomplete repetitions, incompatible
 campaigns, and missing engine counterparts cannot produce a misleading speedup.
 Unsupported capabilities remain visible. Historical schema-v1 records and earlier schema-v2 records without an embedded
-manifest are rejected by the current reporter; retain their original source and reports.
+manifest are rejected by the reporter; retain their original source and reports.
 
 ### Distributed validation
 
@@ -86,7 +86,7 @@ the generator's sequential random-number sequence without a driver-sized result
 list. This bounds its memory by one parent but limits oracle generation to one
 task. Synthetic dataset construction itself still uses a driver-side parent list.
 Individual nested rows must fit worker memory, and disk capacity and shuffle
-cost remain practical limits. The bundled distributed validator currently supports the local Spark runner;
+cost remain practical limits. The bundled distributed validator supports the local Spark runner;
 other engines may implement equivalent complete-result validation.
 
 The implementation uses Spark's [RDD persistence](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.RDD.persist.html)
@@ -117,7 +117,7 @@ are separate from full materialization output-row rates.
 
 Comet native operator fraction counts plan nodes with Comet names. It is **not a
 fraction of elapsed time, rows, or bytes**, and other plan nodes are not automatically
-fallback defects. Write records currently capture their verification-read plan;
+fallback defects. Write records capture their verification-read plan;
 that plan cannot support claims about native write execution.
 
 The Linux sampler accumulates per-process CPU/IO deltas across child lifetimes and

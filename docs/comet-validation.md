@@ -23,27 +23,27 @@ compare Spark answers and can assert native execution or explicit fallback.
 exercise upstream Iceberg against Comet. Scan-rule changes need both answer parity
 and the intended native/fallback plan; an unchanged answer can hide a full fallback.
 
-## Relevant contributions
+## Choose regression coverage by change
 
-| PR | Scope | Relevant validation |
-|---|---|---|
-| [apache/datafusion-comet#5732](https://github.com/apache/datafusion-comet/pull/5732) | Struct-only Iceberg null-predicate fallback; authored contribution | List/map NULL and NOT NULL, empty collections, retained struct fallback, SF1 nested Iceberg scans |
-| [apache/datafusion-comet#5365](https://github.com/apache/datafusion-comet/pull/5365) | Native Delta scan; review and workload-validation contribution | Contrib suite, nested projection, calendar policies and deletion-vector-specific fixtures |
-| [dwsmith1983/datafusion-comet#1](https://github.com/dwsmith1983/datafusion-comet/pull/1) and [#2](https://github.com/dwsmith1983/datafusion-comet/pull/2) | Deleted row-group skipping and ASCII field matching; authored contributions | DV row-group boundaries and schema-name matching, respectively |
-| [dwsmith1983/datafusion-comet#3](https://github.com/dwsmith1983/datafusion-comet/pull/3) and [#4](https://github.com/dwsmith1983/datafusion-comet/pull/4) | Compressed DV representations/selections; authored contributions | Sparse/dense/range DV fixtures with expected row sets and memory bounds |
+| Change | Required coverage |
+|---|---|
+| Nested null-predicate scan eligibility | List/map NULL and NOT NULL, empty collections, null elements, struct fallback and native/fallback plan assertions |
+| Nested projection or schema matching | Selected fields, missing fields, case handling, schema evolution and calendar policies |
+| Deletion-vector row-group skipping | Deleted and retained rows across row-group boundaries, with exact expected row sets |
+| Deletion-vector representation or selection | Sparse, dense and contiguous deletions, empty/full selections and memory bounds |
 
-For #5732, the [review discussion](https://github.com/apache/datafusion-comet/pull/5732)
-distinguishes scan eligibility from residual pushdown. Native scanning does not
-prove list/map predicates execute inside iceberg-rust; the filter above the scan
-can enforce them. Inspect the current source and review thread before making a
-pushdown claim. NDC’s normal Delta writes do not enable deletion vectors or load
-the optional contrib module, so their success does not qualify the DV changes.
+Distinguish scan eligibility from residual predicate pushdown. A native scan does
+not prove that list/map predicates execute inside the storage reader; a filter
+above the scan can enforce them. Inspect the executed plan and predicate handling
+in the tested source before claiming pushdown. NDC’s ordinary Delta writes do not
+enable deletion vectors or load the optional contrib module; use dedicated
+upstream fixtures to qualify deletion-vector changes.
 
 ## SF1 campaign procedure
 
-Pin the PR head and its comparison base, matching Spark/Scala/Iceberg versions and
+Pin the candidate revision and its comparison base, matching Spark/Scala/Iceberg versions and
 native build profile. Build each candidate in an isolated checkout; capture the
-source revision and JAR checksum. For a JVM-only PR, reusing a native library is
+source revision and JAR checksum. For a JVM-only change, reusing a native library is
 valid only when the native source and build settings are identical between candidates.
 
 First run the affected upstream suites and NDC tiny candidate qualification using
@@ -67,7 +67,7 @@ as source revisions. For outputs beyond driver memory, select
 Use explicit CPU and memory limits. Record execution threads, driver heap, Comet
 off-heap memory, cache mode and build profile. One repetition without warm-ups is
 a correctness check, not a performance comparison. Publish evidence only through
-accessible check runs or immutable bundles; never cite private campaign/session IDs.
+accessible check runs or immutable bundles; identify the exact source and artifacts used.
 
 ## Security and developer experience
 

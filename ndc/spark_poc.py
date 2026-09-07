@@ -45,6 +45,7 @@ def main():
     p.add_argument('--campaign-id',default=None)
     p.add_argument('--sf',default='0.0083')
     a=p.parse_args()
+    if a.intent not in ('correctness','performance'): p.error('intent must be correctness or performance')
     distributed=a.validation=='distributed'
     if a.warmups<0: p.error('warmups must be nonnegative')
     if a.intent=='performance' and a.warmups<1: p.error('performance intent requires warmups')
