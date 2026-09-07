@@ -13,6 +13,9 @@ Run commands from the repository root. `run.sh` enters the locked Nix environmen
 | `./ndc/run.sh build-scale` | Generate, size-check, export, nest, validate composition, qualify tiny answers, build depths/shapes, prepare formats |
 | `./ndc/run.sh shapes` | Build synthetic shapes in a fresh data directory |
 | `./ndc/run.sh build-fmt iceberg` | Prepare matched flat and nested Iceberg tables; Delta analogous |
+| `./ndc/run.sh size-check` | Check all eight TPC-H table counts against the declared scale |
+| `./ndc/run.sh invariants` | Validate exact nested-leaf bags and parent membership in DuckDB |
+| `./ndc/run.sh parity` | Compare flat and nested reference results in DuckDB |
 | `./ndc/run.sh qualify-references` | Check the 24 tiny pins using eight independent DuckDB flat queries |
 | `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 46 candidate workloads; one `qualification.json` verdict |
 | `./ndc/run.sh lite` | One repetition of historical query membership on Parquet |
@@ -36,7 +39,11 @@ repetition, one stream, no warm-up, uncontrolled cache and all 46 workloads for 
 selected candidate. `NDC_CAMPAIGN_DIR`, if provided, names a fresh qualification
 root; its engine campaign lives under `campaign/`. Bundle that child campaign to
 include the qualification summary and gate logs. Each gate has a log, and failures
-stop subsequent gates. Larger-scale experiments use `matrix` or the phase commands.
+stop subsequent gates. Supported engines are `vanilla` and `comet`; the default
+format is `parquet`, with `iceberg` and `delta` also accepted. A successful verdict
+permits explicitly unsupported capabilities, including Parquet UPDATE/DELETE;
+inspect the campaign report for exclusions. Larger-scale experiments use `matrix`
+or the phase commands.
 
 ## Configuration
 
@@ -47,7 +54,7 @@ stop subsequent gates. Larger-scale experiments use `matrix` or the phase comman
 | `SPARK_DRIVER_MEM` | `8g` | Driver heap; also disclose native/off-heap limits |
 | `FORMATS` | `parquet iceberg delta` | Space-separated format cells |
 | `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
-| `RUNS` | `3` | Measured repetitions for matrix/full/throughput |
+| `RUNS` | `3` | Measured repetitions for matrix and measurement phases; qualification fixes one |
 | `WARMUPS` | `1` | Validated untimed executions per workload |
 | `VALIDATION` | `collect` | `distributed` validates full outputs on executors; timing modes cannot be mixed |
 | `CACHE` | `uncontrolled` | `uncontrolled`, `warm`, or explicit `cold` |
@@ -70,6 +77,12 @@ not needed; remote storage and cluster deployment are not implemented here.
 ## Examples
 
 ```sh
+# First select an already prepared workspace (see the root quickstart).
+export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
+
+# Preview query order without launching Spark; output is workspace-relative.
+SUITE=read QUERY_SEED=11 ./ndc/run.sh plan read-plan.json
+
 # Correctness campaign, bounded input; no performance claim.
 RUNS=1 WARMUPS=0 ./ndc/run.sh matrix
 

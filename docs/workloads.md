@@ -25,7 +25,8 @@ NDC does not generate the DS schema or execute its 99-query suite.
   and unused padding fields. `shape_flat`, `shape_returns`, `shape_dim` are controls.
   `shape.json` records generation parameters; `shapes.records` is deterministic.
 
-`PARENTS`, `FANOUT`, `WIDTH`, and `SEED` control the synthetic fixture at build time.
+`PARENTS`, `FANOUT`, `WIDTH`, and `DATA_SEED` control the synthetic fixture at build
+time. `DATA_SEED` falls back to `SEED`, then 7; `QUERY_SEED` only controls query order.
 Null arrays, empty arrays, null elements, null amount/tag leaves, duplicate values,
 and ties are deliberate. Parent cardinalities cycle through 0, 1, 4, 16, and the
 maximum fan-out (bounded by that maximum). Sweep fan-out and width in fresh
@@ -47,9 +48,10 @@ reviewable files. Changing semantics requires changing/reviewing reference answe
   of qualifying orders and their total; it cannot reduce to a maximum predicate.
 - Q6 validates revenue **and count**, including all depth variants. Empty-match
   revenue is NULL and count is zero. E19 also preserves NULL SUM semantics.
-- `s_full` materializes the complete selected nested payload to the driver. It
-  measures a materialized read including serialization/collection, not pure disk
-  bandwidth. Keep its shape scale within driver memory.
+- `s_full` materializes the complete selected nested payload. `VALIDATION=collect`
+  brings it to the driver; `VALIDATION=distributed` persists it on executor disk.
+  Both include serialization and materialization, so neither measures pure disk
+  bandwidth. See [validation modes and memory limits](methodology.md#distributed-validation).
 - `s_regroup` reconstructs selected child structs; `s_topn` depends on two values.
 - `ds_rank` joins a dimension, aggregates by category, then ranks.
 - `ds_channels` unions positive sales and negative returns, then rolls up channel

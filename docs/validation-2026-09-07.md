@@ -4,11 +4,11 @@
 NDC's TPC-H-derived queries and TPC-DS-inspired/synthetic workloads were exercised
 with Spark 4.1.3, Comet 1.0.0, Iceberg 1.11.0 and Delta 4.3.1.
 
-## Results
+## Initial acceptance results
 
 | Check | Observed result |
 |---|---|
-| Final harness tests | 21 standard-library tests passed; ShellCheck and Bash syntax passed |
+| Initial harness tests | 21 standard-library tests passed; ShellCheck and Bash syntax passed |
 | Fresh artifact installation | Spark SHA-512 and four JAR SHA-256 pins verified; cached setup rerun passed |
 | Tiny TPC-H generation | All eight table counts passed at declared sf0.0083; 48,214 line items, 12,000 orders |
 | Structural invariants | Exact retained-leaf bags and parent cardinality passed |
@@ -113,3 +113,52 @@ reporter. They were not rewritten to satisfy the revised validity gate.
 The revised campaign bundle and SHA-256 sidecar are retained beside the campaign
 and copied to ignored `results/validation/` locally. Archive and every member
 checksum passed; the measured source inventory matched the reviewed source snapshot at verification.
+
+
+## Distributed validation and explicit phases
+
+Subsequent checks cover commits `2f6b06f` (distributed validation) and `1a3e336`
+(explicit phases and frozen schedules). The initial and review evidence above
+remains tied to its original snapshots.
+
+| Check | Observed result |
+|---|---|
+| Final interface harness | **36 tests passed**, plus ShellCheck and Bash syntax |
+| Distributed six-cell matrix | **272 valid, 4 unsupported** across all 46 workloads |
+| Candidate qualification, Comet/Iceberg | All five gates passed; **46 valid samples** |
+| Serial latency, historical suite | **48 valid samples** across both engines on Parquet |
+| Maintenance | **12 valid samples** across both engines on Iceberg and Delta |
+| Shared-session throughput | **8 valid samples**: two DS-inspired queries × two streams × two engines on Parquet |
+| Wrong-answer injection | Distributed validation rejected the answer and returned nonzero |
+| Evidence integrity | Archive/member checksums and measured source hashes verified; observed sample order exactly matched each frozen plan |
+
+The final phase campaigns reused the prepared tiny dataset and the CPU/memory
+allocation above. They used `QUERY_SEED=11`, one repetition and no warm-ups,
+except throughput used one warm-up with `CACHE=warm`. Synthetic data retained
+seed 7. Qualification selected all 46 workloads; latency selected `SUITE=tpch`.
+These phase campaigns used collect validation; wrong-answer injection separately
+exercised distributed validation.
+
+Focused Spark checks also covered nested bags, ordering, duplicate loss, late
+corruption, partition-independent identities, oversized mismatch summaries and
+writes with collection forbidden. Ordinary collection exceeded the configured
+1 MiB driver result limit; distributed validation succeeded. This validator used
+`local[2]` and a 2 GiB driver heap within the same 400% CPU/16 GiB scope limits.
+
+Retained campaign IDs under `workspaces/tpch-tiny/results/`:
+
+| Evidence | Campaign ID |
+|---|---|
+| Distributed matrix | `20260907T054413-f6a0afb6` |
+| Distributed concurrent reads | `20260907T060214-80f10fd5` |
+| Final candidate qualification | `qualification-cf81c1a4675f/campaign` |
+| Final latency | `20260907T064120-83c0fc41` |
+| Final maintenance | `20260907T064209-458081b6` |
+| Final shared-session throughput | `20260907T064358-10c4500a` |
+| Final wrong-answer rejection | `negative_dk8d1rxn` |
+
+The final source snapshot is retained in `interface-final/`. Successful campaign
+bundles and SHA-256 sidecars are also copied to ignored `results/validation/`.
+The qualification bundle includes `qualification.json` and all five gate logs.
+Its engine campaign lives one directory below the qualification root; pass that
+child directory to `./ndc/run.sh bundle`.

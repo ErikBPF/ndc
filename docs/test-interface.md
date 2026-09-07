@@ -9,7 +9,7 @@ workloads, phase sequencing, stream behavior and result artifacts.
 | Concern | TPC-DS | NDC today |
 |---|---|---|
 | Data preparation | `dsdgen`; generation and database load | `bootstrap` + `build-scale`: DuckDB TPC-H generation, exports, nested layouts, synthetic shapes and format copies |
-| Query preparation | `dsqgen`; 99 parameterized templates | Explicit manifests and fixed SQL; Independent `DATA_SEED` and `QUERY_SEED`; fixed SQL and expanded schedules in `plan.json` |
+| Query preparation | `dsqgen`; 99 parameterized templates | Fixed SQL in explicit manifests; independent `DATA_SEED` and `QUERY_SEED`; SQL and expanded schedules retained in `plan.json` |
 | Serial measurement | Power Test | `latency` selects serial reads; `matrix` separately selects engine/format cells |
 | Concurrent measurement | One session per stream | `shared-throughput`: threads share one Spark session; default two streams of the two DS-inspired queries |
 | Maintenance | Generated refresh sets | `maintenance`: update/delete/compaction workloads on fresh per-sample targets |
