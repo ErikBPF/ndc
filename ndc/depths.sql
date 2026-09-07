@@ -3,8 +3,8 @@
 -- depth d>1: single-projection wrap of depth d-1, CHAINED from the previous file.
 -- Parity: CTE-per-unnest chains (chained FROM-UNNEST does not correlate over TVFs).
 -- Invariant: every depth returns the exact flat-Q6 count and revenue.
-SET threads TO 16;
-SET memory_limit='48GB';
+SET threads TO 4;
+SET memory_limit='8GB';
 
 COPY (
   SELECT o_orderkey,

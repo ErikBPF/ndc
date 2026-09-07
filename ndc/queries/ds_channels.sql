@@ -1,0 +1,1 @@
+WITH facts AS (SELECT bucket,'sale' channel,x.amount amount FROM shape LATERAL VIEW explode(items) e AS x WHERE x IS NOT NULL UNION ALL SELECT bucket,'return' channel,-x.amount amount FROM shape LATERAL VIEW explode(returns) e AS x WHERE x IS NOT NULL) SELECT channel,bucket,sum(amount) total,grouping_id(channel,bucket) level FROM facts GROUP BY ROLLUP(channel,bucket)

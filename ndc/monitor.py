@@ -1,63 +1,60 @@
-"""Process-tree resource sampler. usage: monitor.py <root_pid> <out.csv> [interval_s]
-Samples cpu jiffies (tree sum), peak driver-tree RSS, io read/write bytes until root exits."""
-import os
+"""Linux process-tree sampler. CPU/IO totals survive child exit; RSS is a sampled sum."""
+from pathlib import Path
 import sys
 import time
 
 
-def tree(root):
-    procs = {}
-    for p in os.listdir("/proc"):
-        if not p.isdigit():
+def sample(root, proc=Path('/proc')):
+    processes = {}
+    for path in proc.iterdir():
+        if not path.name.isdigit():
             continue
         try:
-            stat = open(f"/proc/{p}/stat").read()
-            fields = stat[stat.rfind(")") + 2:].split()
-            procs[int(p)] = int(fields[1])
-        except Exception:
-            pass
-    kids, todo = set(), [root]
-    while todo:
-        p = todo.pop()
-        if p in kids:
+            text = (path/'stat').read_text()
+            fields = text[text.rfind(')')+2:].split()
+            processes[int(path.name)] = (int(fields[1]), fields, path)
+        except (OSError, ValueError, IndexError):
             continue
-        kids.add(p)
-        todo += [c for c, pp in procs.items() if pp == p]
-    return kids
+    descendants, todo = set(), [root]
+    while todo:
+        pid = todo.pop()
+        if pid in descendants:
+            continue
+        descendants.add(pid)
+        todo.extend(p for p,(parent,_,_) in processes.items() if parent == pid)
+    result = {'alive': root in processes, 'rss_kb':0, 'processes':{}}
+    for pid in descendants & processes.keys():
+        _, fields, path = processes[pid]
+        try:
+            status = (path/'status').read_text()
+            rss = int(status.split('VmRSS:')[1].split()[0]) if 'VmRSS:' in status else 0
+            io = dict(line.split(':',1) for line in (path/'io').read_text().splitlines())
+            result['rss_kb'] += rss
+            result['processes'][(pid,fields[19])] = (
+                int(fields[11])+int(fields[12]), int(io['read_bytes']),int(io['write_bytes']))
+        except (OSError, ValueError, KeyError, IndexError):
+            continue
+    return result
 
 
 def main():
     root, out = int(sys.argv[1]), sys.argv[2]
-    iv = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
-    with open(out, "w") as f:
-        f.write("ts,cpu_jiffies,rss_kb,read_bytes,write_bytes\n")
+    interval = float(sys.argv[3]) if len(sys.argv)>3 else .2
+    previous, totals = {}, [0,0,0]
+    with open(out,'w') as f:
+        f.write('ts,cpu_jiffies,rss_kb,read_bytes,write_bytes\n')
         while True:
-            cpu = rss = rd = wr = 0
-            alive = False
-            for p in tree(root):
-                try:
-                    stat = open(f"/proc/{p}/stat").read()
-                    fl = stat[stat.rfind(")") + 2:].split()
-                    cpu += int(fl[11]) + int(fl[12])
-                    if p == root:
-                        alive = True
-                        status = open(f"/proc/{p}/status").read()
-                        rss = max(rss, int(status.split("VmRSS:")[1].split()[0]))
-                    io = dict(
-                        (ln.split(": ")[0], int(ln.split(": ")[1].strip()))
-                        for ln in open(f"/proc/{p}/io") if ": " in ln
-                    )
-                    rd += io.get("read_bytes", 0)
-                    wr += io.get("write_bytes", 0)
-                except Exception:
-                    pass
-            ts = time.time()
-            f.write(f"{ts:.3f},{cpu},{rss},{rd},{wr}\n")
+            current=sample(root)
+            for identity, values in current['processes'].items():
+                old=previous.get(identity, (0,0,0))
+                totals=[a+max(0,b-c) for a,b,c in zip(totals,values,old)]
+                previous[identity]=values
+            f.write(f'{time.time():.6f},{totals[0]},{current["rss_kb"]},{totals[1]},{totals[2]}\n')
             f.flush()
-            if not alive:
+            if not current['alive']:
                 break
-            time.sleep(iv)
+            time.sleep(interval)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -1,204 +1,175 @@
 #!/usr/bin/env bash
-# TPC-H-derived nested POC, stage driver. Run from its own workspace copy:
-# ./run.sh <stage> [args]
-# Profiles:
-#   lite    — during-work smoke: tiny scale, 1 run, parquet, both engines, parity gate
-#   full    — release/PR discipline: all formats x engines, 3 runs, drop-caches, monitor
-#   bootstrap <sf> <name> — new sibling workspace for a scale point
+# One pinned checkout; datasets and immutable campaigns live in an explicit workspace.
 set -euo pipefail
-cd "$(dirname "$0")"
-mkdir -p data results
-
-# D11/D12: bench profile (cluster + fs target). Unimplemented targets fail loud.
-if [ -f bench.conf ]; then
+CODE=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(dirname "$CODE")
+if [[ ${NDC_IN_ENV:-} != 1 ]]; then
+  exec nix develop "path:$ROOT/nix" -c env NDC_IN_ENV=1 bash "$0" "$@"
+fi
+export NDC_WORKSPACE=${NDC_WORKSPACE:-$ROOT/workspaces/default}
+mkdir -p "$NDC_WORKSPACE"
+cd "$NDC_WORKSPACE"
+if [[ -f bench.conf ]]; then
   # shellcheck disable=SC1091
   source bench.conf
 fi
-CLUSTER=${CLUSTER:-local}
-FS=${FS:-local-fs}
-case "$CLUSTER" in
-  local) : ;;
-  *) echo "CLUSTER=$CLUSTER declared in bench.conf but not implemented (D11); use local" >&2; exit 2 ;;
-esac
-case "$FS" in
-  local-fs) : ;;
-  s3-cygnus) echo "FS=s3-cygnus declared in bench.conf but not implemented (D12); needs hadoop-aws jars + Vault creds" >&2; exit 2 ;;
-  *) echo "unknown FS=$FS (D12)" >&2; exit 2 ;;
-esac
-
+[[ ${CLUSTER:-local} == local && ${FS:-local-fs} == local-fs ]] || { echo 'Only local/local-fs implemented' >&2; exit 2; }
 SPARK41_BASE=${SPARK41_BASE:-$HOME/ndc-spark41}
-SPARK_HOME=$SPARK41_BASE/spark-4.1.3-bin-hadoop3
+export SPARK_HOME=${SPARK_HOME:-$SPARK41_BASE/spark-4.1.3-bin-hadoop3}
+export PATH="$SPARK_HOME/bin:$PATH"
 JARDIR=$SPARK41_BASE/jars
 COMET_JAR=${COMET_JAR:-$JARDIR/comet-spark-spark4.1_2.13-1.0.0.jar}
-ICEBERG_JAR=$JARDIR/iceberg-spark-runtime-4.1_2.13-1.11.0.jar
-# Delta 4.4.0 is binary-incompatible with Spark 4.1.3; 4.3.x verified.
+ICEBERG_JAR=${ICEBERG_JAR:-$JARDIR/iceberg-spark-runtime-4.1_2.13-1.11.0.jar}
 DELTA_JAR=${DELTA_JAR:-$JARDIR/delta-spark_2.13-4.3.1.jar}
 DELTA_STORAGE_JAR=${DELTA_STORAGE_JAR:-$JARDIR/delta-storage-4.3.1.jar}
-DMEM=${SPARK_DRIVER_MEM:-32g}
+MASTER=${SPARK_MASTER:-local[4]}
+DMEM=${SPARK_DRIVER_MEM:-8g}
 
-engine_flags() { # $1 = vanilla|comet, $2 = fmt
-  local jars="" confs="" app=""
-  if [ "$1" = comet ]; then
-    jars=$COMET_JAR
-    confs="--conf spark.driver.extraClassPath=$COMET_JAR --conf spark.executor.extraClassPath=$COMET_JAR"
-    app="--comet"
+engine_flags() {
+  local engine=$1 fmt=$2
+  JVM_FLAGS=(--master "$MASTER" --driver-memory "$DMEM")
+  JARS=()
+  [[ $engine == vanilla || $engine == comet ]] || return 2
+  if [[ $engine == comet ]]; then
+    JARS+=("$COMET_JAR")
+    JVM_FLAGS+=(--conf "spark.driver.extraClassPath=$COMET_JAR" --conf "spark.executor.extraClassPath=$COMET_JAR")
   fi
-  case "$2" in
+  case "$fmt" in
+    parquet) ;;
     iceberg)
-      jars="$jars,$ICEBERG_JAR"
-      confs="$confs --conf spark.sql.catalog.local_tpch=org.apache.iceberg.spark.SparkCatalog --conf spark.sql.catalog.local_tpch.warehouse=$PWD/data_iceberg_wh --conf spark.sql.catalog.local_tpch.type=hadoop"
-      ;;
+      JARS+=("$ICEBERG_JAR")
+      JVM_FLAGS+=(--conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+        --conf spark.sql.catalog.local_tpch=org.apache.iceberg.spark.SparkCatalog
+        --conf "spark.sql.catalog.local_tpch.warehouse=$PWD/data_iceberg_wh"
+        --conf spark.sql.catalog.local_tpch.type=hadoop) ;;
     delta)
-      jars="$jars,$DELTA_JAR,$DELTA_STORAGE_JAR"
-      confs="$confs --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension --conf spark.sql.catalog.spark_catalog=io.delta.spark.DeltaCatalog"
-      ;;
+      JARS+=("$DELTA_JAR" "$DELTA_STORAGE_JAR")
+      JVM_FLAGS+=(--conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+        --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog) ;;
+    *) echo "Unknown format: $fmt" >&2; return 2 ;;
   esac
-  jars=${jars#,}
-  local jf=""
-  [ -n "$jars" ] && jf="--jars $jars"
-  printf '%s\n' "$jf $confs" "$app"
+  NDC_JARS=$(IFS=,; echo "${JARS[*]}")
+  export NDC_JARS
+  [[ ${#JARS[@]} == 0 ]] || JVM_FLAGS+=(--jars "$NDC_JARS")
 }
 
-dropcaches() {
-  if sudo -n sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null; then
-    echo dropped
-  else
-    echo drop-failed
-  fi
-}
-
-spark_run() { # $1 = engine ; $2 = fmt ; $3 = query manifest ; $4 = runs ; $5 = drop-caches yes|no
-  local eng=$1 fmt=$2 q=${3:-} runs=${4:-3} drop=${5:-no}
-  local out=results/spark_${eng}_${fmt}.json
-  local mon=results/monitor_${eng}_${fmt}.csv
-  mapfile -t _ef < <(engine_flags "$eng" "$fmt")
-  local jvmflags=${_ef[0]-} appflags=${_ef[1]-}
-  local qflag=""; [ -n "$q" ] && qflag="--queries $q"
-  local dflag=""; [ "$drop" = yes ] && dflag="--drop-caches"
-  nix shell nixpkgs#openjdk nixpkgs#python3 -c bash -c "
-    export JAVA_HOME=\$(dirname \$(dirname \$(command -v java)))
-    export SPARK_HOME=$SPARK_HOME
-    export PATH=$SPARK_HOME/bin:\$PATH
-    exec spark-submit --driver-memory $DMEM $jvmflags spark_poc.py $appflags --fmt $fmt --data data --out $out --runs $runs $qflag $dflag" \
-    > "results/spark_${eng}_${fmt}.stdout" 2>&1 &
+spark_run() {
+  local eng=$1 fmt=$2 q=${3:-$CODE/queries/manifest-full.json} runs=${4:-3} drop=${5:-no}
+  local campaign=${NDC_CAMPAIGN_DIR:-$PWD/results/$(date -u +%Y%m%dT%H%M%S)-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:8])')}
+  mkdir -p "$campaign"
+  local out=$campaign/spark_${eng}_${fmt}.json mon=$campaign/monitor_${eng}_${fmt}.csv
+  [[ ! -e $out ]] || { echo "Refusing existing result $out" >&2; return 2; }
+  engine_flags "$eng" "$fmt"
+  local args=(--fmt "$fmt" --data "$PWD/data" --out "$out" --queries "$q" --runs "$runs"
+    --sf "$(cat scale.txt)" --campaign-id "$(basename "$campaign")" --streams "${STREAMS:-1}"
+    --warmups "${WARMUPS:-1}" --seed "${SEED:-7}" --cache "${CACHE:-uncontrolled}"
+    --layout-mode "${LAYOUT_MODE:-matched}")
+  [[ $eng != comet ]] || args+=(--comet)
+  [[ $drop != yes ]] || args+=(--drop-caches)
+  spark-submit "${JVM_FLAGS[@]}" "$CODE/spark_poc.py" "${args[@]}" > "$campaign/spark_${eng}_${fmt}.stdout" 2>&1 &
   local spid=$! rc=0
-  nix shell nixpkgs#python3 -c python3 monitor.py "$spid" "$mon" 1 >/dev/null 2>&1 &
+  python3 "$CODE/monitor.py" "$spid" "$mon" "${MONITOR_INTERVAL:-0.2}" &
+  local mpid=$!
   wait "$spid" || rc=$?
-  nix shell nixpkgs#python3 -c python3 merge_monitor.py "$out" "$mon" || true
-  tail -1 "results/spark_${eng}_${fmt}.stdout"
-  return $rc
+  wait "$mpid" || rc=1
+  if [[ -f $out ]]; then
+    python3 "$CODE/merge_monitor.py" "$out" "$mon" || rc=1
+  fi
+  tail -3 "$campaign/spark_${eng}_${fmt}.stdout"
+  return "$rc"
 }
 
-matrix() { # $1 = runs ; $2 = drop-caches yes|no ; $3 = query manifest
-  local runs=${1:-3} drop=${2:-yes} q=${3:-queries/manifest-depth.json}
-  for fmt in parquet iceberg delta; do
-    for eng in vanilla comet; do
-      dropcaches >/dev/null
+matrix() { # Continue for diagnostics, but any failed cell fails the campaign.
+  local runs=${1:-3} drop=${2:-no} q=${3:-$CODE/queries/manifest-all.json} failed=0
+  local formats=${FORMATS:-parquet iceberg delta} engines=${ENGINES:-vanilla comet}
+  local base=${NDC_WORKSPACE:-$PWD}
+  export NDC_CAMPAIGN_DIR=${NDC_CAMPAIGN_DIR:-$base/results/$(date -u +%Y%m%dT%H%M%S)-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:8])')}
+  [[ ! -e $NDC_CAMPAIGN_DIR ]] || { echo "Campaign already exists: $NDC_CAMPAIGN_DIR" >&2; return 2; }
+  mkdir -p "$NDC_CAMPAIGN_DIR"
+  local cells=() fmt eng
+  # Engines alternate across format cells; repetitions use the same seeded query permutations.
+  for fmt in $formats; do
+    for eng in $engines; do
+      cells+=("$eng/$fmt")
       if ! spark_run "$eng" "$fmt" "$q" "$runs" "$drop"; then
-        echo "CELL_FAIL $eng/$fmt"
+        echo "CELL_FAIL $eng/$fmt" >&2
+        failed=1
       fi
     done
+    if [[ $engines == 'vanilla comet' ]]; then engines='comet vanilla'; else engines=${ENGINES:-vanilla comet}; fi
   done
+  python3 - "$NDC_CAMPAIGN_DIR/campaign.json" "$failed" "${cells[@]}" <<'PY'
+import json,sys
+from pathlib import Path
+Path(sys.argv[1]).write_text(json.dumps({'status':'failed' if int(sys.argv[2]) else 'ok','cells':sys.argv[3:]},indent=2))
+PY
+  if [[ $failed == 0 ]]; then python3 "$CODE/report.py" "$NDC_CAMPAIGN_DIR" "$NDC_CAMPAIGN_DIR/report.md" || failed=1; fi
+  echo "CAMPAIGN -> $NDC_CAMPAIGN_DIR"
+  return "$failed"
 }
 
 case "${1:-}" in
-  gen)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < gen.sql && ls -la tpch.duckdb | awk "{print \$5, \$9}"'
-    ;;
-  conv)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < conv.sql && ls -la data/*.parquet | awk "{print \$5, \$9}"'
-    ;;
-  nested)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < nested.sql && ls -la data/orders_nested.parquet | awk "{print \$5, \$9}"'
-    ;;
-  parity)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb < parity.sql && cat results/parity.txt'
-    ;;
-  depths)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < depths.sql && cat results/parity_depths.txt &&
-      ls -la data/orders_depth*.parquet | awk "{print \$5, \$9}"'
-    ;;
-  setup)
-    mkdir -p "$SPARK41_BASE" "$JARDIR"
-    if [ ! -d "$SPARK_HOME" ]; then
-      curl -sS -o "$SPARK41_BASE/spark.tgz" https://archive.apache.org/dist/spark/spark-4.1.3/spark-4.1.3-bin-hadoop3.tgz
-      tar xzf "$SPARK41_BASE/spark.tgz" -C "$SPARK41_BASE"
-      rm "$SPARK41_BASE/spark.tgz"
-    fi
-    for pair in \
-      "$COMET_JAR|https://repo1.maven.org/maven2/org/apache/datafusion/comet-spark-spark4.1_2.13/1.0.0/comet-spark-spark4.1_2.13-1.0.0.jar" \
-      "$ICEBERG_JAR|https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-4.1_2.13/1.11.0/iceberg-spark-runtime-4.1_2.13-1.11.0.jar" \
-      "$DELTA_JAR|https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/4.3.1/delta-spark_2.13-4.3.1.jar" \
-      "$DELTA_STORAGE_JAR|https://repo1.maven.org/maven2/io/delta/delta-storage/4.3.1/delta-storage-4.3.1.jar"; do
-      f=${pair%%|*}; url=${pair#*|}
-      [ -s "$f" ] || curl -sS -o "$f" -w "%{http_code} $(basename "$f") %{size_download}\n" "$url"
-    done
-    ls -la "$JARDIR" | awk '{print $5, $9}'
-    ;;
-  build-fmt)
-    # $2 = iceberg|delta
-    mapfile -t _ef < <(engine_flags vanilla "$2")
-    jvmflags=${_ef[0]-} appflags=${_ef[1]-}
-    nix shell nixpkgs#openjdk nixpkgs#python3 -c bash -c "
-      export JAVA_HOME=\$(dirname \$(dirname \$(command -v java)))
-      export SPARK_HOME=$SPARK_HOME
-      export PATH=$SPARK_HOME/bin:\$PATH
-      spark-submit --driver-memory $DMEM $jvmflags write_fmt.py --fmt $2 --data data" \
-      > "results/buildfmt_$2.stdout" 2>&1
-    tail -2 "results/buildfmt_$2.stdout"
-    ;;
-  spark)
-    # $2 = vanilla|comet ; $3 = fmt ; $4 = query manifest ; $5 = runs ; $6 = drop-caches yes|no
-    spark_run "$2" "${3:-parquet}" "${4:-}" "${5:-3}" "${6:-no}"
-    ;;
+  setup) python3 "$CODE/setup.py" "$SPARK41_BASE" ;;
   bootstrap)
-    # $2 = sf ; $3 = name -> creates a new sibling scale workspace under WS_ROOT.
-    # Copies only scripts (never data/results); writes gen.sql with the SF knob.
-    local_name=$3
-    ws=${WS_ROOT:-$HOME/ndc-workspaces}/tpch-$local_name
-    mkdir -p "$ws/data" "$ws/results"
-    for f in run.sh spark_poc.py conv.sql nested.sql parity.sql depths.sql monitor.py merge_monitor.py write_fmt.py check_size.py report.py sizes.csv; do
-      cp "$f" "$ws/"
-    done
-    cp -r "$PWD/queries" "$ws/queries"
-    printf "SET threads TO 8;\nSET memory_limit='24GB';\nINSTALL tpch; LOAD tpch;\nCALL dbgen(sf = %s);\n" "$2" > "$ws/gen.sql"
+    sf=${2:?scale factor required}; name=${3:?workspace name required}
+    [[ $name =~ ^[A-Za-z0-9_-]+$ && $sf =~ ^[0-9]+([.][0-9]+)?$ ]] || exit 2
+    ws=${WS_ROOT:-$ROOT/workspaces}/tpch-$name
+    [[ ! -e $ws ]] || { echo "Workspace already exists: $ws" >&2; exit 2; }
+    mkdir -p "$ws"
+    printf '%s\n' "$sf" > "$ws/scale.txt"
+    printf "SET threads TO 4;\nSET memory_limit='8GB';\nINSTALL tpch; LOAD tpch;\nCALL dbgen(sf = %s);\n" "$sf" > "$ws/gen.sql"
+    cp "$CODE/bench.conf" "$ws/bench.conf"
+    printf '#!/usr/bin/env bash\nexport NDC_WORKSPACE=%q\nexec %q "$@"\n' "$ws" "$CODE/run.sh" > "$ws/run.sh"
     chmod +x "$ws/run.sh"
-    echo "BOOTSTRAPPED $ws (sf=$2)"
-    ;;
-  build-scale)
-    # full data build in this workspace: gen -> conv -> nested -> depths -> formats
-    ./run.sh gen && ./run.sh conv && ./run.sh nested && ./run.sh depths
-    ./run.sh build-fmt iceberg && ./run.sh build-fmt delta
-    ;;
-  lite)
-    # during-work smoke: data must exist; 1 run; parquet only; both engines
-    ./run.sh depthsmoke
-    for eng in vanilla comet; do
-      spark_run "$eng" parquet "${QUERIES:-queries/manifest-depth.json}" 1 no
-    done
-    ;;
-  full)
-    # release discipline: all formats x engines, 3 runs, drop-caches, monitor
-    matrix 3 yes "${QUERIES:-queries/manifest-full.json}"
-    ;;
-  comet-default)
-    # D13: the default tpch-ndc kit for our DataFusion Comet work
-    matrix 3 yes "${QUERIES:-queries/manifest-full.json}"
-    nix shell nixpkgs#python3 -c python3 report.py results results/report.md || true
-    ;;
-  report)
-    nix shell nixpkgs#python3 -c python3 report.py results results/report.md || true
-    ;;
+    echo "BOOTSTRAPPED $ws" ;;
+  gen) mkdir -p data results; duckdb tpch.duckdb < gen.sql ;;
+  conv|nested) duckdb tpch.duckdb < "$CODE/$1.sql" ;;
+  depths|depthsmoke)
+    duckdb tpch.duckdb < "$CODE/depths.sql"
+    grep -q 'PARITY_OK' results/parity_depths.txt || { cat results/parity_depths.txt; exit 1; } ;;
+  qualify) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
+  parity)
+    duckdb < "$CODE/parity.sql"
+    grep -q 'PARITY_OK' results/parity.txt || { cat results/parity.txt; exit 1; } ;;
   size-check)
-    # D10: assert per-SF row counts against sizes.csv (sf parsed from gen.sql)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb -csv tpch.duckdb -c "
-SELECT (SELECT count(*) FROM lineitem) AS lineitem, (SELECT count(*) FROM orders) AS orders,
-       (SELECT count(*) FROM part) AS part, (SELECT count(*) FROM customer) AS customer,
-       (SELECT count(*) FROM supplier) AS supplier, (SELECT count(*) FROM partsupp) AS partsupp;"' | tee results/size-check.csv
-    nix shell nixpkgs#python3 -c python3 check_size.py gen.sql results/size-check.csv sizes.csv
+    duckdb -csv tpch.duckdb -c "SELECT (SELECT count(*) FROM lineitem) lineitem,
+      (SELECT count(*) FROM orders) orders, (SELECT count(*) FROM part) part,
+      (SELECT count(*) FROM customer) customer, (SELECT count(*) FROM supplier) supplier,
+      (SELECT count(*) FROM partsupp) partsupp, (SELECT count(*) FROM nation) nation,
+      (SELECT count(*) FROM region) region;" > results/size-check.csv
+    python3 "$CODE/check_size.py" gen.sql results/size-check.csv "$CODE/sizes.csv" ;;
+  shapes)
+    engine_flags vanilla parquet
+    spark-submit "${JVM_FLAGS[@]}" "$CODE/shapes.py" --data "$PWD/data" --parents "${PARENTS:-128}" --fanout "${FANOUT:-64}" --width "${WIDTH:-8}" --seed "${SEED:-7}" ;;
+  build-fmt)
+    engine_flags vanilla "${2:?format required}"
+    spark-submit "${JVM_FLAGS[@]}" "$CODE/write_fmt.py" --fmt "$2" --data "$PWD/data" ;;
+  build-scale)
+    "$CODE/run.sh" gen
+    "$CODE/run.sh" size-check
+    "$CODE/run.sh" conv
+    "$CODE/run.sh" nested
+    duckdb tpch.duckdb < "$CODE/invariants.sql"
+    if [[ $(cat scale.txt) == 0.0083 ]]; then "$CODE/run.sh" qualify; fi
+    "$CODE/run.sh" parity
+    "$CODE/run.sh" depths
+    "$CODE/run.sh" shapes
+    for fmt in ${FORMATS:-parquet iceberg delta}; do
+      [[ $fmt == parquet ]] || "$CODE/run.sh" build-fmt "$fmt"
+    done
+    python3 - "$CODE" "$PWD/data" <<'PY'
+import sys
+sys.path.insert(0,sys.argv[1])
+from provenance import dataset
+print('DATASET',dataset(sys.argv[2])['dataset_id'])
+PY
     ;;
-  depthsmoke)
-    nix shell nixpkgs#duckdb -c bash -c 'duckdb tpch.duckdb < depths.sql && cat results/parity_depths.txt' | tail -1
-    ;;
-  *) echo "usage: run.sh gen|conv|nested|parity|depths|setup|bootstrap <sf> <name>|build-scale|build-fmt <fmt>|spark <eng> <fmt> [manifest] [runs] [drop]|lite|full|comet-default|report|size-check|depthsmoke"; exit 1;;
+  spark) spark_run "${2:?engine required}" "${3:-parquet}" "${4:-$CODE/queries/manifest-full.json}" "${5:-3}" "${6:-no}" ;;
+  lite) FORMATS=parquet matrix 1 no "${QUERIES:-$CODE/queries/manifest-full.json}" ;;
+  full|comet-default|matrix) matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-$CODE/queries/manifest-all.json}" ;;
+  throughput) STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-$CODE/queries/manifest-ds.json}" ;;
+  bundle) python3 "$CODE/bundle.py" "${2:?campaign required}" ;;
+  report) python3 "$CODE/report.py" "${2:?campaign directory required}" "${2}/report.md" ;;
+  test) cd "$ROOT"; python3 -m unittest discover -s tests -v; shellcheck ndc/run.sh; bash -n ndc/run.sh ;;
+  *) echo 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|parity|spark <engine> <fmt> [manifest] [runs]|lite|full|throughput|report <campaign>|test'; exit 2 ;;
 esac

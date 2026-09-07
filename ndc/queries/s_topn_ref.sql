@@ -1,0 +1,1 @@
+WITH ranked AS (SELECT id,amount,row_number() OVER (PARTITION BY id ORDER BY amount DESC,pos DESC) rn FROM shape_flat WHERE amount IS NOT NULL) SELECT d.id,coalesce(sum(r.amount),0) total FROM shape_dim d LEFT JOIN ranked r ON d.id=r.id AND rn<=2 GROUP BY d.id

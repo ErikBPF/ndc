@@ -1,70 +1,122 @@
-"""Family-level report for tpch-ndc (D13). usage: report.py <dir-with-results> <out.md>
-Reads spark_{vanilla,comet}_{parquet,iceberg,delta}.json; prints family x format
-speedups + a per-cell verdict for the 'is my use case better on Comet?' question."""
+"""Report only validated, comparable schema-v2 cells from one campaign."""
 import json
-import os
+import math
+from pathlib import Path
 import statistics
 import sys
 
-FAMILIES = {
-    "built-in (scan+agg)": lambda q: q.startswith("q") and "depth" not in q,
-    "depth 1-8": lambda q: "depth" in q,
-    "extended (manipulation)": lambda q: q.startswith("e"),
-}
+from provenance import identity
+
+
+def load_cells(directory):
+    cells = {}
+    for path in sorted(Path(directory).glob('spark_*.json')):
+        cell = json.loads(path.read_text())
+        if cell.get('schema_version') != 2 or cell.get('parity_ok') is not True:
+            raise ValueError(f'{path.name}: invalid or legacy cell')
+        if not cell.get('results'):
+            raise ValueError(f'{path.name}: empty results')
+        manifest = cell.get('manifest')
+        if not isinstance(manifest, dict) or not manifest or identity(manifest) != cell.get('manifest_id'):
+            raise ValueError(f'{path.name}: missing or inconsistent manifest')
+        samples = set()
+        for r in cell['results']:
+            key = (r['q'], r['run'], r.get('stream', 0))
+            if key in samples:
+                raise ValueError(f'{path.name}: duplicate sample')
+            samples.add(key)
+            if r['status'] == 'unsupported':
+                continue
+            if (r['status'] != 'ok' or r.get('valid') is not True
+                    or not math.isfinite(r['ms']) or r['ms'] <= 0
+                    or r['cache'] == 'drop-failed'):
+                raise ValueError(f'{path.name}: invalid sample {key}')
+        runs = cell['comparison']['runs']
+        streams = cell['comparison']['streams']
+        expected = {(q, i, s) for q in manifest
+                    for i in range(runs) for s in range(streams)}
+        if samples != expected:
+            raise ValueError(f'{path.name}: incomplete samples')
+        key = (cell['engine'], cell['fmt'])
+        if key in cells:
+            raise ValueError(f'duplicate cell {key}')
+        cells[key] = cell
+    if not cells:
+        raise ValueError('no result cells')
+    first = next(iter(cells.values()))
+    for cell in cells.values():
+        for key in ('campaign_id', 'dataset_id', 'manifest_id', 'comparison', 'spark_version'):
+            if cell.get(key) != first.get(key):
+                raise ValueError(f'incompatible {key}')
+        schedule = lambda c: {(r['q'], r['run'], r.get('stream', 0), r['cache'])
+                              for r in c['results']}
+        if cell.get('environment',{}).get('source_id')!=first.get('environment',{}).get('source_id'):
+            raise ValueError('incompatible source snapshot')
+        if schedule(cell) != schedule(first):
+            raise ValueError('incompatible query/sample/cache coverage')
+    for fmt in {f for _,f in cells}:
+        pair=[c for (e,f),c in cells.items() if f==fmt]
+        if len({c.get('format_id') for c in pair})>1: raise ValueError('different physical format inputs')
+    answers={}
+    for cell in cells.values():
+        for r in cell['results']:
+            if r['status'] != 'ok': continue
+            if not r.get('answer_id'): raise ValueError('missing answer identity')
+            if r['q'] in answers and answers[r['q']] != r['answer_id']:
+                raise ValueError(f'inconsistent answers: {r["q"]}')
+            answers[r['q']]=r['answer_id']
+    campaign = Path(directory) / 'campaign.json'
+    if campaign.exists():
+        expected = json.loads(campaign.read_text())
+        if expected.get('status') != 'ok' or set(expected['cells']) != {
+                f'{e}/{f}' for e, f in cells}:
+            raise ValueError('failed or incomplete campaign')
+    return cells
+
+
+def render(cells):
+    lines = ['# NDC results', '',
+             'TPC-H-derived; TPC-DS-inspired. Not comparable to published TPC results.', '',
+             'Ratios are Spark / Comet medians. No overall score or significance verdict.', '',
+             '| Format | Family | Query | Spark ms | Comet ms | Ratio | Samples | Range ms (Spark / Comet) |',
+             '|---|---|---|---:|---:|---:|---:|---|']
+    for fmt in sorted({f for _, f in cells}):
+        vanilla, comet = cells.get(('vanilla', fmt)), cells.get(('comet', fmt))
+        if not vanilla or not comet:
+            lines.append(f'\n{fmt}: missing engine counterpart; no speedup comparison.')
+            continue
+        for q in sorted({r['q'] for r in vanilla['results']}):
+            groups = [[r for r in c['results'] if r['q'] == q] for c in (vanilla, comet)]
+            if any(r['status'] == 'unsupported' for g in groups for r in g):
+                lines.append(f'\n{fmt}/{q}: unsupported; no comparison.')
+                continue
+            a, b = [[r['ms'] for r in g] for g in groups]
+            ma, mb = statistics.median(a), statistics.median(b)
+            lines.append(f'| {fmt} | {groups[0][0]["family"]} | {q} | {ma:.3f} | {mb:.3f} | '
+                         f'{ma/mb:.3f}x | {len(a)} | {min(a):.3f}–{max(a):.3f} / {min(b):.3f}–{max(b):.3f} |')
+        for family in sorted({r['family'] for r in vanilla['results']}):
+            sums = [sum(statistics.median([r['ms'] for r in c['results']
+                                          if r['q'] == q and r['status'] == 'ok'])
+                        for q in {r['q'] for r in c['results']
+                                  if r['family'] == family and r['status'] == 'ok'})
+                    for c in (vanilla, comet)]
+            lines.append(f'\n{fmt}/{family}: sum of query medians {sums[0]:.3f} / {sums[1]:.3f} ms (descriptive).')
+        if vanilla['comparison']['streams'] > 1:
+            for c in (vanilla, comet):
+                seconds = c['timed_elapsed_s']
+                count = sum(r['status'] == 'ok' for r in c['results'])
+                lines.append(f'\n{c["engine"]}/{fmt}: {count/seconds:.3f} completed queries/s over {seconds:.3f}s.')
+    return '\n'.join(lines) + '\n'
 
 
 def main():
-    d = sys.argv[1]
-    cells = {}
-    for eng in ("vanilla", "comet"):
-        for fmt in ("parquet", "iceberg", "delta"):
-            p = os.path.join(d, f"spark_{eng}_{fmt}.json")
-            if not os.path.exists(p):
-                continue
-            j = json.load(open(p))
-            med = {}
-            for r in j["results"]:
-                med.setdefault(r["q"], []).append(r["ms"])
-            cells[(eng, fmt)] = {
-                "parity": j.get("parity_ok"),
-                "spark": j.get("spark_version"),
-                "t": {q: statistics.median(v) / 1000 for q, v in sorted(med.items())},
-            }
-    qs = sorted(next(iter(cells.values()))["t"])
-    lines = ["# tpch-ndc report", "",
-             f"- queries: {len(qs)} | parity: "
-             f"{ {f'{e}/{f}': c['parity'] for (e, f), c in cells.items()} }",
-             f"- spark: {next(iter(cells.values()))['spark']} | "
-             "cluster/fs: see bench.conf", ""]
-    lines.append("| Family | " + " | ".join(f"{'Comet' if e=='comet' else 'Spark'}/{f}" for e, f in cells) + " |")
-    lines.append("|---|" + "---:|" * len(cells))
-    for fam, pred in FAMILIES.items():
-        fam_qs = [q for q in qs if pred(q)]
-        if not fam_qs:
-            continue
-        row = [f"{fam} ({len(fam_qs)}q)"]
-        for k in cells:
-            s = sum(cells[k]["t"][q] for q in fam_qs)
-            row.append(f"{s:.2f}s")
-        lines.append("| " + " | ".join(row) + " |")
-    tot = [sum(cells[k]["t"].values()) for k in cells]
-    lines.append("| **total** | " + " | ".join(f"{t:.2f}s" for t in tot) + " |")
-    lines.append("")
-    lines.append("| Format | Speedup | Comet verdict |")
-    lines.append("|---|---:|---|")
-    vs = {f: sum(cells[("vanilla", f)]["t"].values()) for f in ("parquet", "iceberg", "delta") if ("vanilla", f) in cells}
-    cs = {f: sum(cells[("comet", f)]["t"].values()) for f in ("parquet", "iceberg", "delta") if ("comet", f) in cells}
-    for fmt in ("parquet", "iceberg", "delta"):
-        if vs[fmt] is None or cs[fmt] is None:
-            continue
-        sp = vs[fmt] / cs[fmt]
-        verdict = ("Comet wins" if sp >= 1.15 else "near tie" if sp >= 0.95 else "Comet loses")
-        lines.append(f"| {fmt} | {sp:.2f}x | {verdict} |")
-    out = sys.argv[2]
-    open(out, "w").write("\n".join(lines) + "\n")
-    print("\n".join(lines[2:]))
-    print(f"REPORT -> {out}")
+    try:
+        report = render(load_cells(sys.argv[1]))
+    except (ValueError, KeyError, TypeError) as error:
+        sys.exit(f'REPORT_INVALID: {error}')
+    Path(sys.argv[2]).write_text(report)
+    print(f'REPORT -> {sys.argv[2]}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

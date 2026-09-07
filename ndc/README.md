@@ -1,47 +1,83 @@
-# ndc-tpch benchmark kit
+# Running NDC
 
-The stage driver and query set for the ndc-tpch benchmark (see the
-[repository README](../README.md) for identity, design, fair-use status,
-and disclaimer).
+NDC is TPC-H-derived and TPC-DS-inspired; see the [root README](../README.md) and
+[methodology](../docs/methodology.md) for scope and comparison rules.
 
-## Layout
+Run commands from the repository root. `run.sh` enters the locked Nix environment.
+`NDC_WORKSPACE` selects data/configuration; code stays in the pinned checkout.
 
-| Path | Role |
+| Command | Behavior |
 |---|---|
-| `run.sh` | Stage driver: `gen`, `conv`, `nested`, `parity`, `depths`, `setup`, `build-fmt <iceberg\|delta>`, `spark`, `bootstrap <sf> <name>`, `build-scale`, `lite`, `full`, `comet-default`, `report`, `size-check`, `depthsmoke` |
-| `spark_poc.py` | Runner: per-query timing, parity vs flat, native/fallback accounting, JSON records |
-| `monitor.py` / `merge_monitor.py` | Sidecar `/proc` sampler (tree CPU, peak RSS, IO bytes) merged per query window |
-| `write_fmt.py` | Writes the nested table sets to Iceberg / Delta |
-| `report.py` | Generates `results/report.md` (per family × format verdicts) |
-| `conv.sql`, `nested.sql`, `depths.sql` | Data preparation: flat export → `orders_nested` struct-array transform → depth 1–8 wraps |
-| `parity.sql`, `ext_parity.sql` | DuckDB verification suites (built-in + extended pairs) |
-| `queries/` | 24 `.sql` files (qgen convention) + manifests: `manifest-full.json` (the full set), `manifest-depth.json` (depth sweep) |
-| `answers/sf0.0083/` | Pinned per-query answers at sf 0.0083 (`.out` files) |
-| `bench.conf` | Cluster (`CLUSTER=`) and storage (`FS=`) targets |
-| `sizes.csv` | Recorded dbgen row counts per scale factor (`size-check` reference) |
-| `check_size.py` | D10 sizing gate: fails the build if row counts drift from `sizes.csv` |
+| `./ndc/run.sh setup` | Download and verify Spark/Comet/Iceberg/Delta artifacts |
+| `./ndc/run.sh bootstrap <sf> <name>` | Create a new workspace; reject existing names |
+| `./ndc/run.sh build-scale` | Generate, size-check, export, nest, validate composition, qualify tiny answers, build depths/shapes, prepare formats |
+| `./ndc/run.sh shapes` | Build synthetic shapes in a fresh data directory |
+| `./ndc/run.sh build-fmt iceberg` | Prepare matched flat and nested Iceberg tables; Delta analogous |
+| `./ndc/run.sh qualify` | Check the 24 tiny pins using eight independent DuckDB flat queries |
+| `./ndc/run.sh lite` | One repetition of historical query membership on Parquet |
+| `./ndc/run.sh matrix` | Selected query manifest, formats, engines, repetitions |
+| `./ndc/run.sh full` / `comet-default` | Aliases for the full matrix driver |
+| `./ndc/run.sh throughput` | Concurrent read streams; defaults to the DS-inspired suite |
+| `./ndc/run.sh report <campaign>` | Validate compatibility and produce a report |
+| `./ndc/run.sh bundle <campaign>` | Archive diagnostics, measured source, metadata and checksums |
+| `./ndc/run.sh test` | Standard-library regression tests, ShellCheck, Bash syntax |
 
-## Quickstart
+## Configuration
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SPARK41_BASE` | `$HOME/ndc-spark41` | Verified distribution and JAR directory |
+| `SPARK_MASTER` | `local[4]` | Spark execution target; only local host orchestration supported |
+| `SPARK_DRIVER_MEM` | `8g` | Driver heap; also disclose native/off-heap limits |
+| `FORMATS` | `parquet iceberg delta` | Space-separated format cells |
+| `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
+| `RUNS` | `3` | Measured repetitions for matrix/full/throughput |
+| `WARMUPS` | `1` | Validated untimed executions per workload |
+| `CACHE` | `uncontrolled` | `uncontrolled`, `warm`, or explicit `cold` |
+| `LAYOUT_MODE` | `matched` | `mixed` keeps flat references as Parquet |
+| `SEED` | `7` | Data generation and query-permutation seed |
+| `STREAMS` | `1` (`2` for throughput) | Concurrent read streams in one Spark application |
+| `PARENTS`, `FANOUT`, `WIDTH` | `128`, `64`, `8` | Synthetic shape parameters, used during build |
+| `QUERIES` | `manifest-all.json` for matrix | Absolute path to an explicit query manifest |
+| `NDC_CAMPAIGN_DIR` | Unique timestamp/UUID path | Optional explicit fresh output directory |
+
+`COMET_JAR`, `ICEBERG_JAR`, `DELTA_JAR`, `DELTA_STORAGE_JAR` accept deliberate
+candidate overrides. Results record the actual hashes; candidate artifacts must
+be provided before execution. Do not silently relabel them as the default release.
+`bench.conf` only declares implemented local execution/storage. Credentials are
+not needed; remote storage and cluster deployment are not implemented here.
+
+## Examples
 
 ```sh
-# one-time: Spark 4.1.3 tarball + Comet/Iceberg/Delta jars under $SPARK41_BASE
-#   (run.sh defaults to $HOME/ndc-spark41, override with SPARK41_BASE=...)
+# Correctness campaign, bounded input; no performance claim.
+RUNS=1 WARMUPS=0 ./ndc/run.sh matrix
 
-./run.sh bootstrap 1 sf1          # new scale workspace under ${WS_ROOT:-$HOME/ndc-workspaces}
-cd ${WS_ROOT:-$HOME/ndc-workspaces}/tpch-sf1
-./run.sh build-scale              # dbgen -> flat Parquet -> nested -> depths -> Iceberg -> Delta
-./run.sh size-check               # assert row counts against ndc/sizes.csv
-./run.sh comet-default            # default kit: 24 queries x {vanilla, Comet} x 3 formats,
-                                  # 3 runs, drop-caches, monitor, parity gate, family report
+# Repeated materialized-read/compute experiment.
+QUERIES="$PWD/ndc/queries/manifest-shapes.json" RUNS=5 CACHE=warm ./ndc/run.sh matrix
+
+# A distinct shared-application throughput experiment.
+RUNS=3 STREAMS=2 WARMUPS=1 ./ndc/run.sh throughput
+
+# Writes and maintenance are separate selectable suites.
+QUERIES="$PWD/ndc/queries/manifest-write.json" ./ndc/run.sh matrix
+QUERIES="$PWD/ndc/queries/manifest-maintenance.json" ./ndc/run.sh matrix
+
+# Run after the tiny workspace has been built; expects deliberately wrong SQL to fail.
+nix develop "path:$PWD/nix" -c python3 tests/integration.py
 ```
 
-Profiles: `lite` (during-work smoke, 1 run, Parquet only, parity gate),
-`full` (all formats x engines, 3 runs, drop-caches — release/PR
-discipline), `comet-default` (the shipped default kit ending in a family
-report). `lite` overwrites `full`-profile JSONs in the same workspace —
-keep lite work in a separate workspace.
+For scale/shape sweeps, bootstrap a different workspace for each point and set its
+build parameters. Regenerating shape files in place is rejected. Rebuilding table
+formats intentionally replaces their prepared copies and records a new physical
+identity. A stale or altered format copy fails preflight before timing.
 
-Cold-cache discipline requires passwordless `sudo` for
-`/proc/sys/vm/drop_caches`; runs record `cache: cold|warm|drop-failed`
-per query either way. Row parity is enforced at run time; a parity
-failure is a defect record, not a timing.
+## CI
+
+`ci.yml` runs harness checks and a tiny real Spark/Parquet campaign on each PR/push.
+Scheduled/manual runs also qualify Comet, Iceberg and Delta. Failures preserve raw
+logs and result artifacts. `security.yml` scans PRs/pushes and can run manually.
+Actions are pinned to immutable commits; Nix and JVM artifacts are pinned too.
+Performance thresholds belong on controlled hardware, not hosted CI runners.
+The workflow does not deploy infrastructure, publish benchmark claims, or run
+host-wide cache drops. GitHub execution requires pushing the workflow changes.

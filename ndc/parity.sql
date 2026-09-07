@@ -1,7 +1,7 @@
--- DuckDB parity + baseline timing for the adapted query set.
--- Output: results/duckdb.json (timings), results/parity.txt (H0 gate).
-SET threads TO 16;
-SET memory_limit='48GB';
+-- DuckDB parity for the adapted query set; no timing measurements.
+-- Output: results/duckdb.json (answers), results/parity.txt (validity gate).
+SET threads TO 4;
+SET memory_limit='8GB';
 INSTALL parquet; LOAD parquet;
 
 CREATE OR REPLACE TABLE lineitem AS FROM 'data/lineitem.parquet';

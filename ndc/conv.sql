@@ -1,6 +1,6 @@
 -- Export the 8 dbgen tables from the database to Parquet.
-SET threads TO 16;
-SET memory_limit='48GB';
+SET threads TO 4;
+SET memory_limit='8GB';
 
 COPY lineitem TO 'data/lineitem.parquet'  (FORMAT parquet);
 COPY orders   TO 'data/orders.parquet'    (FORMAT parquet);

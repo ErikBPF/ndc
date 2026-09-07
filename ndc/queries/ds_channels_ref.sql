@@ -1,0 +1,1 @@
+WITH facts AS (SELECT bucket,'sale' channel,amount FROM shape_flat UNION ALL SELECT bucket,'return' channel,-amount amount FROM shape_returns) SELECT channel,bucket,sum(amount) total,grouping_id(channel,bucket) level FROM facts GROUP BY ROLLUP(channel,bucket)

@@ -1,0 +1,1 @@
+WITH totals AS (SELECT d.bucket,sum(x.amount) total FROM (SELECT id,explode(items) x FROM shape) s JOIN shape_dim d ON s.id=d.id WHERE s.x IS NOT NULL GROUP BY d.bucket) SELECT bucket,total,dense_rank() OVER (ORDER BY total DESC) rank FROM totals

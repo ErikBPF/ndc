@@ -1,0 +1,38 @@
+{
+  "w_materialize": {
+    "sql": "queries/w_materialize.sql",
+    "reference": "queries/w_materialize_ref.sql",
+    "family": "write",
+    "operation": "materialize",
+    "layout": "nested",
+    "ordered": false,
+    "action": "materialize"
+  },
+  "w_transform": {
+    "sql": "queries/w_transform.sql",
+    "reference": "queries/w_transform_ref.sql",
+    "family": "write",
+    "operation": "nested-transform",
+    "layout": "nested",
+    "ordered": false,
+    "action": "materialize"
+  },
+  "w_construct": {
+    "sql": "queries/w_construct.sql",
+    "reference": "queries/w_construct_ref.sql",
+    "family": "write",
+    "operation": "flat-to-nested",
+    "layout": "flat",
+    "ordered": false,
+    "action": "materialize"
+  },
+  "w_append": {
+    "sql": "queries/w_append.sql",
+    "reference": "queries/w_append_ref.sql",
+    "family": "write",
+    "operation": "append",
+    "layout": "nested",
+    "ordered": false,
+    "action": "append"
+  }
+}

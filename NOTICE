@@ -1,8 +1,15 @@
-ndc-tpch — Nested Data Compute
+NDC — Nested Data Compute
 
 This suite is a benchmark derived from the TPC Benchmark TPC-H and as
 such is not comparable to published TPC-H results, as the ndc-tpch
 results do not comply with the TPC-H Specification.
+
+NDC also draws conceptual inspiration from TPC-DS qualification, analytical
+query patterns, data maintenance, and throughput phases. It does not implement
+the full TPC-DS schema or workload and is not compliant with the TPC-DS
+Specification. NDC results are not comparable to published TPC-DS results.
+No TPC-DS generator or query-template source is redistributed here.
+TPC-H and TPC-DS are trademarks of the Transaction Processing Performance Council.
 
 TPC-H, dbgen, and qgen are Copyright © Transaction Processing Performance
 Council (TPC). The TPC benchmark specifications and the dbgen/qgen tools
@@ -13,7 +20,7 @@ locally via the DuckDB `tpch` extension (MIT licensed) calling dbgen.
 
 All deviations from the TPC-H Specification (schema layout, query text,
 data layout, run methodology, metrics) are declared in the repository
-documentation and per-run result records.
+documentation and schema-v2 result records. Legacy records lack some required disclosure.
 
 Copyright 2026 Erik BPF (ErikBPF)
 

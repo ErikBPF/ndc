@@ -1,0 +1,52 @@
+name: Benchmark correctness
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ndc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+      - run: ./ndc/run.sh test
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: harness
+    env:
+      SPARK_DRIVER_MEM: 3g
+      SPARK_MASTER: local[2]
+      WARMUPS: '0'
+      RUNS: '1'
+      PARENTS: '32'
+      FANOUT: '16'
+      WIDTH: '4'
+      FORMATS: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'parquet iceberg delta' || 'parquet' }}
+      ENGINES: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vanilla comet' || 'vanilla' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+      - run: ./ndc/run.sh setup
+      - run: ./ndc/run.sh bootstrap 0.0083 ci
+      - name: Generate, qualify and measure tiny inputs
+        run: |
+          export NDC_WORKSPACE="$PWD/workspaces/tpch-ci"
+          ./ndc/run.sh build-scale
+          ./ndc/run.sh matrix
+          nix develop "path:$PWD/nix" -c python3 tests/integration.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ndc-qualification-${{ github.run_id }}
+          path: workspaces/tpch-ci/results/
+          retention-days: 14
