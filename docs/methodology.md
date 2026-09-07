@@ -20,7 +20,8 @@ order effects; this is not per-repetition interleaving across engines. Use repea
 campaigns with reversed `ENGINES` order for performance claims. `STREAMS>1` runs
 independent seeded read streams through one Spark application; this measures a
 shared-session workload, not independent client/server connections. Stream elapsed
-is first submission to last completion, including dispatch gaps. Per-query resource
+is first submission to last completion, including dispatch, validation and plan-capture
+gaps between queries. Per-query resource
 attribution is unavailable for overlapping streams.
 
 Cache modes:

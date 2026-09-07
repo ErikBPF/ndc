@@ -46,7 +46,7 @@ nix develop "path:$PWD/nix" -c python3 tests/integration.py
 
 Defaults: `local[4]`, 8 GiB driver heap, 128 synthetic parents, maximum fan-out 64,
 8 padding fields, seed 7. Comet additionally uses a configured 2 GiB off-heap pool;
-record total host/process limits when comparing engines. Use `SPARK_MASTER` and
+record allocated CPU/process memory limits when comparing engines. Use `SPARK_MASTER` and
 `SPARK_DRIVER_MEM` to fit your machine. The tiny qualification scale is intentionally
 not a TPC publication scale.
 
@@ -74,8 +74,9 @@ weighted score or an automatic significance verdict.
 - [Workloads and schemas](docs/workloads.md)
 - [Measurement and validity rules](docs/methodology.md)
 - [Commands and CI](ndc/README.md)
+- [Test interface compared with TPC-DS](docs/test-interface.md)
 - [Answer provenance](ndc/answers/README.md)
-- [Apollo validation](docs/validation-apollo.md)
+- [Benchmark validation](docs/validation-2026-09-07.md)
 - [Attribution and deviations](NOTICE)
 
 The original published README's speedup figures used the earlier harness. They

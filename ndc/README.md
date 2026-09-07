@@ -33,6 +33,7 @@ Run commands from the repository root. `run.sh` enters the locked Nix environmen
 | `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
 | `RUNS` | `3` | Measured repetitions for matrix/full/throughput |
 | `WARMUPS` | `1` | Validated untimed executions per workload |
+| `VALIDATION` | `collect` | `distributed` validates full outputs on executors; timing modes cannot be mixed |
 | `CACHE` | `uncontrolled` | `uncontrolled`, `warm`, or explicit `cold` |
 | `LAYOUT_MODE` | `matched` | `mixed` keeps flat references as Parquet |
 | `SEED` | `7` | Data generation and query-permutation seed |
@@ -92,3 +93,6 @@ materialization; compare only campaigns using the same validation mode. Default
 `tests/spark_validation.py` runs under `spark-submit` in CI and verifies exact bag
 and ordered comparison, stable answer identities, write round trips without driver
 collection, and validation above a 1 MiB driver result limit.
+
+See [the TPC-DS interface comparison](../docs/test-interface.md) for phase mappings
+and current interface gaps.
