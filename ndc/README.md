@@ -81,3 +81,14 @@ Actions are pinned to immutable commits; Nix and JVM artifacts are pinned too.
 Performance thresholds belong on controlled hardware, not hosted CI runners.
 The workflow does not deploy infrastructure, publish benchmark claims, or run
 host-wide cache drops. GitHub execution requires pushing the workflow changes.
+
+### Outputs larger than driver memory
+
+Use `VALIDATION=distributed ./ndc/run.sh matrix`. This preserves complete-row and
+duplicate checks on executors. Read timing includes Python serialization and disk
+materialization; compare only campaigns using the same validation mode. Default
+`collect` timing remains available. See [measurement rules](../docs/methodology.md#distributed-validation).
+
+`tests/spark_validation.py` runs under `spark-submit` in CI and verifies exact bag
+and ordered comparison, stable answer identities, write round trips without driver
+collection, and validation above a 1 MiB driver result limit.

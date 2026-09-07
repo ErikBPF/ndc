@@ -43,7 +43,12 @@ jobs:
           export NDC_WORKSPACE="$PWD/workspaces/tpch-ci"
           ./ndc/run.sh build-scale
           ./ndc/run.sh matrix
+          VALIDATION=distributed FORMATS=parquet ENGINES=vanilla ./ndc/run.sh matrix
           nix develop "path:$PWD/nix" -c python3 tests/integration.py
+          VALIDATION=distributed nix develop "path:$PWD/nix" -c python3 tests/integration.py
+          nix develop "path:$PWD/nix" -c "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
+            --master 'local[2]' --driver-memory 2g \
+            --py-files ndc/validation.py,ndc/provenance.py,ndc/mutations.py tests/spark_validation.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -14,8 +14,8 @@ from pyspark.sql import SparkSession
 
 from mutations import inventory, prepare
 from provenance import dataset, environment, identity, plans, format_identity, limits
-from shapes import full_answer
-from validation import canonical, read_answer, validate
+from shapes import full_answer, iter_full_answer
+from validation import canonical, read_answer, validate, materialize, distributed_validate
 
 
 def positive(value):
@@ -27,6 +27,7 @@ def positive(value):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--comet',action='store_true')
+    p.add_argument('--validation',choices=['collect','distributed'],default='collect')
     p.add_argument('--data',default='data')
     p.add_argument('--out',required=True)
     p.add_argument('--queries',default=str(Path(__file__).parent/'queries/manifest-full.json'))
@@ -41,6 +42,7 @@ def main():
     p.add_argument('--campaign-id',default=None)
     p.add_argument('--sf',default='0.0083')
     a=p.parse_args()
+    distributed=a.validation=='distributed'
     if a.warmups<0: p.error('warmups must be nonnegative')
     if a.drop_caches: a.cache='cold'
     if a.cache=='cold' and a.streams>1: p.error('cold cache requires a single stream')
@@ -72,6 +74,9 @@ def main():
                  .config('spark.memory.offHeap.enabled','true').config('spark.memory.offHeap.size','2g'))
     spark=builder.getOrCreate()
     spark.sparkContext.setLogLevel('ERROR')
+    if distributed:
+        for name in ('validation.py','provenance.py','shapes.py','mutations.py'):
+            spark.sparkContext.addPyFile(str(root/'ndc'/name))
     datadir=Path(a.data).resolve()
     for path in sorted(datadir.glob('*.parquet')):
         table=path.stem
@@ -91,7 +96,7 @@ def main():
     record={'schema_version':2,'campaign_id':a.campaign_id or str(uuid.uuid4()),
             'dataset_id':base_id,'format_id':physical_id,'manifest_id':identity(manifest),'manifest':manifest,
             'comparison':{'runs':a.runs,'streams':a.streams,'warmups':a.warmups,'seed':a.seed,
-                          'cache':a.cache,'layout_mode':a.layout_mode,'sf':a.sf,
+                          'cache':a.cache,'layout_mode':a.layout_mode,'sf':a.sf,'validation':a.validation,
                           'host':env['host'],'cpu_affinity':env['cpu_affinity'],'cgroup_limits':limits(),
                           'master':spark.sparkContext.master,'driver_memory':spark.sparkContext.getConf().get('spark.driver.memory')},
             'environment':env,'command':sys.argv,'engine':'comet' if a.comet else 'vanilla','fmt':a.fmt,
@@ -108,14 +113,22 @@ def main():
         for name,spec in manifest.items():
             if 'action' in spec: continue
             reference=spark.sql(spec['reference_text'])
-            expected=[tuple(r) for r in reference.collect()]
+            expected=reference.rdd.map(tuple) if distributed else [tuple(r) for r in reference.collect()]
             oracle='flat-reference'
             if spec.get('oracle')=='python-shape':
-                expected=full_answer(json.loads((datadir/'shape.json').read_text()))
+                config=json.loads((datadir/'shape.json').read_text())
+                # ponytail: one streaming oracle task preserves the original sequential RNG.
+                expected=(spark.sparkContext.parallelize([config],1).flatMap(iter_full_answer)
+                          if distributed else full_answer(config))
                 oracle='independent-python'
             elif a.sf=='0.0083' and spec.get('answer'):
                 expected=read_answer(root/'ndc'/spec['answer'],reference.schema)
                 oracle='pinned-qualification'
+                if distributed:expected=spark.sparkContext.parallelize(expected,1)
+            if distributed:
+                from pyspark import StorageLevel
+                expected=expected.persist(StorageLevel.DISK_ONLY)
+                expected.count()
             references[name]=(expected,oracle)
         # Warm-ups are fully executed and validated; never included as timing samples.
         def execute(name,run,stream,warmup=False):
@@ -125,10 +138,11 @@ def main():
                     'status':'error','valid':False}
             if spec.get('action') in ('update','delete') and a.fmt=='parquet':
                 return dict(result,status='unsupported',reason='Parquet has no transactional row mutation')
+            actual=None
             try:
                 if 'action' in spec:
                     target=scratch/f'{name}_{stream}_{run}_{"warm" if warmup else "timed"}'
-                    action,read,expected,before=prepare(spark,spec['sql_text'],spec['reference_text'],a.fmt,target,spec['action'])
+                    action,read,expected,before=prepare(spark,spec['sql_text'],spec['reference_text'],a.fmt,target,spec['action'],distributed=distributed)
                     oracle='write-round-trip' if spec['action']=='materialize' else 'deterministic-state-transition'
                 else:
                     expected,oracle=references[name]
@@ -140,16 +154,22 @@ def main():
                     action()
                     ms=(time.perf_counter()-start)*1000
                     t1=time.time()
-                    df=read(); actual=[tuple(r) for r in df.collect()]
+                    df=read()
+                    if distributed:actual,row_count=materialize(df)
+                    else:actual=[tuple(r) for r in df.collect()];row_count=len(actual)
                 else:
                     df=spark.sql(spec['sql_text'])
-                    actual=[tuple(r) for r in df.collect()]
+                    if distributed:actual,row_count=materialize(df)
+                    else:actual=[tuple(r) for r in df.collect()];row_count=len(actual)
                     ms=(time.perf_counter()-start)*1000; t1=time.time()
-                result.update(ms=ms,t0=t0,t1=t1,oracle=oracle,rows=len(actual),
-                              valid=validate(actual,expected,spec['ordered']),status='ok')
-                if not result['valid']: result['status']='invalid'
-                normalized=[canonical(row) for row in actual]
-                result['answer_id']=identity(normalized if spec['ordered'] else sorted(normalized,key=repr))
+                if distributed:
+                    valid,answer_id=distributed_validate(actual,expected,spec['ordered'])
+                else:
+                    valid=validate(actual,expected,spec['ordered'])
+                    normalized=[canonical(row) for row in actual]
+                    answer_id=identity(normalized if spec['ordered'] else sorted(normalized,key=repr))
+                result.update(ms=ms,t0=t0,t1=t1,oracle=oracle,rows=row_count,
+                              valid=valid,status='ok' if valid else 'invalid',answer_id=answer_id)
                 if not warmup:
                     plan=plans(df)
                     planfile=plan_dir/f'{name}_{stream}_{run}.json'
@@ -164,13 +184,15 @@ def main():
                         result['logical_changed_rows_per_s']=before['logical_changed_rows']/(ms/1000)
                         result['storage_bytes_before']=before['output_bytes']
                         result['storage_growth_bytes']=result['output_bytes']-before['output_bytes']
-                        if spec['action']=='materialize': result['output_rows_per_s']=len(actual)/(ms/1000)
+                        if spec['action']=='materialize': result['output_rows_per_s']=row_count/(ms/1000)
                         result['plan_scope']='verification read; not the write execution plan'
                     else: result['plan_scope']='timed query'
                 if warmup and not result['valid']: raise ValueError(f'{name}: warm-up answer mismatch')
             except Exception as error:
                 result.update(status='error',valid=False,error=str(error)[:4000])
                 if 'drop-failed' in str(error): result['cache']='drop-failed'
+            finally:
+                if distributed and actual is not None:actual.unpersist()
             return result
         for warmup in range(a.warmups):
             for name in manifest:
@@ -195,6 +217,8 @@ def main():
     except Exception as error:
         record['error']=str(error)[:4000]
     finally:
+        if distributed:
+            for expected,_ in references.values():expected.unpersist()
         output.write_text(json.dumps(record,indent=2,default=str))
         spark.stop()
     print(f'VALIDITY {record["parity_ok"]} -> {output}',flush=True)

@@ -20,6 +20,14 @@ class WorkloadTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 shapes.records(*invalid)
 
+    def test_shape_oracle_streams_without_building_parent_list(self):
+        shapes=module('shapes')
+        self.assertTrue(hasattr(shapes,'iter_full_answer'), 'streaming shape oracle missing')
+        config=dict(parents=32,fanout=16,width=0,seed=7)
+        self.assertEqual(list(shapes.iter_full_answer(config)),shapes.full_answer(config))
+        import itertools
+        self.assertEqual(len(list(itertools.islice(shapes.iter_full_answer(dict(config,parents=10**9)),2))),2)
+
     def test_manifests_have_explicit_semantics(self):
         for path in (ROOT/'ndc/queries').glob('manifest-*.json'):
             manifest = json.loads(path.read_text())

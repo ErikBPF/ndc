@@ -19,7 +19,7 @@ def inventory(path):
     return {'output_bytes': sum(p.stat().st_size for p in files), 'output_files': len(files), '_files': {str(p):p.stat().st_size for p in files}}
 
 
-def prepare(spark, sql, reference, fmt, directory, operation):
+def prepare(spark, sql, reference, fmt, directory, operation, distributed=False):
     """Setup and oracle construction are outside the measured operation."""
     directory = Path(directory)
     if directory.exists():
@@ -28,8 +28,8 @@ def prepare(spark, sql, reference, fmt, directory, operation):
     location = str(directory/'table')
     table = 'ndc_write.' + directory.name.replace('-', '_')
     source = spark.sql(sql)
-    # ponytail: complete output fits driver memory; use distributed canonical bag checks for larger outputs.
-    expected = [tuple(r) for r in spark.sql(reference).collect()]
+    reference_df = spark.sql(reference)
+    expected = reference_df.rdd.map(tuple) if distributed else [tuple(r) for r in reference_df.collect()]
     active = [location]
 
     def write(df, append=False):
@@ -44,16 +44,32 @@ def prepare(spark, sql, reference, fmt, directory, operation):
 
     if operation != 'materialize':
         write(source)
-        base = [(r[0], r[1].asDict(recursive=True)) for r in expected]
-        expected = expected_state(base, operation)
+        if distributed:
+            base = expected.map(lambda r:(r[0],r[1].asDict(recursive=True)))
+            if operation == 'append':
+                key=base.keys().max()+1
+                appended=(key,{'amount':key*10,'items':[]})
+                expected=base.union(spark.sparkContext.parallelize([appended],1))
+            else:
+                expected=base.flatMap(lambda r:expected_state([r],operation))
+        else:
+            base = [(r[0], r[1].asDict(recursive=True)) for r in expected]
+            expected = expected_state(base, operation)
+            if operation == 'append':appended=expected[-1]
     before = inventory(directory)
-    before['logical_changed_rows'] = (len(expected) if operation=='materialize' else 1 if operation=='append' else int(any(k==1 for k,_ in base)) if operation in ('update','delete') else 0)
+    if operation=='materialize':
+        changed=expected.count() if distributed else len(expected)
+    elif operation=='append':changed=1
+    elif operation in ('update','delete'):
+        changed=base.filter(lambda r:r[0]==1).count() if distributed else sum(k==1 for k,_ in base)
+    else:changed=0
+    before['logical_changed_rows']=changed
 
     def execute():
         if operation == 'materialize':
             write(spark.sql(sql))
         elif operation == 'append':
-            key, payload = expected[-1]
+            key, payload = appended
             write(spark.createDataFrame([(key, payload)], source.schema), append=True)
         elif operation in ('update', 'delete'):
             target = table if fmt == 'iceberg' else f'delta.`{location}`'

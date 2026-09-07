@@ -63,7 +63,7 @@ spark_run() {
   local args=(--fmt "$fmt" --data "$PWD/data" --out "$out" --queries "$q" --runs "$runs"
     --sf "$(cat scale.txt)" --campaign-id "$(basename "$campaign")" --streams "${STREAMS:-1}"
     --warmups "${WARMUPS:-1}" --seed "${SEED:-7}" --cache "${CACHE:-uncontrolled}"
-    --layout-mode "${LAYOUT_MODE:-matched}")
+    --layout-mode "${LAYOUT_MODE:-matched}" --validation "${VALIDATION:-collect}")
   [[ $eng != comet ]] || args+=(--comet)
   [[ $drop != yes ]] || args+=(--drop-caches)
   spark-submit "${JVM_FLAGS[@]}" "$CODE/spark_poc.py" "${args[@]}" > "$campaign/spark_${eng}_${fmt}.stdout" 2>&1 &
