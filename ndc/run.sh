@@ -3,12 +3,23 @@
 set -euo pipefail
 CODE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$CODE")
+usage() { printf '%s\n' 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; }
+if [[ ${1:-} == --help || ${1:-} == -h || ${1:-} == help ]]; then usage; exit 0; fi
+if [[ $# == 0 ]]; then usage; exit 2; fi
 if [[ ${NDC_IN_ENV:-} != 1 ]]; then
   exec nix develop "path:$ROOT/nix" -c env NDC_IN_ENV=1 bash "$0" "$@"
+fi
+if [[ $1 == check || $1 == test ]]; then
+  cd "$ROOT"
+  python3 -m unittest discover -s tests -v
+  shellcheck ndc/run.sh
+  bash -n ndc/run.sh
+  exit 0
 fi
 export NDC_WORKSPACE=${NDC_WORKSPACE:-$ROOT/workspaces/default}
 mkdir -p "$NDC_WORKSPACE"
 cd "$NDC_WORKSPACE"
+export NDC_WORKSPACE="$PWD"
 if [[ -f bench.conf ]]; then
   # shellcheck disable=SC1091
   source bench.conf
@@ -197,6 +208,5 @@ PY
   throughput|shared-throughput) SUITE=${SUITE:-ds} STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-}" shared-throughput ;;
   bundle) python3 "$CODE/bundle.py" "${2:?campaign required}" ;;
   report) python3 "$CODE/report.py" "${2:?campaign directory required}" "${2}/report.md" ;;
-  test|check) cd "$ROOT"; python3 -m unittest discover -s tests -v; shellcheck ndc/run.sh; bash -n ndc/run.sh ;;
-  *) echo 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; exit 2 ;;
+  *) usage; exit 2 ;;
 esac

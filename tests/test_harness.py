@@ -126,6 +126,10 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertIn('parquet', report)
 
+    def test_reads_cannot_be_disguised_as_unsupported(self):
+        p,_=self.report(mutate=lambda c,e:c['results'][0].update(status='unsupported',valid=False))
+        self.assertNotEqual(p.returncode,0,'unsupported status bypassed read validation')
+
     def test_different_answers_cannot_be_compared(self):
         p,_=self.report(mutate=lambda c,e: c['results'][0].update(answer_id=e))
         self.assertNotEqual(p.returncode,0)

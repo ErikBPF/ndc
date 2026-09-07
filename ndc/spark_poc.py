@@ -10,7 +10,7 @@ import uuid
 
 from pyspark.sql import SparkSession
 
-from mutations import inventory, prepare
+from mutations import inventory, prepare, unsupported_reason
 from schedule import build_plan, load_manifest, validate_plan, PHASES
 from provenance import dataset, environment, identity, plans, format_identity, limits
 from shapes import full_answer, iter_full_answer
@@ -136,8 +136,9 @@ def main():
             result={'q':name,'run':run,'stream':stream,'family':spec['family'],
                     'operation':spec['operation'],'layout':spec['layout'],'cache':a.cache,
                     'status':'error','valid':False}
-            if spec.get('action') in ('update','delete') and a.fmt=='parquet':
-                return dict(result,status='unsupported',reason='Parquet has no transactional row mutation')
+            reason=unsupported_reason(spec,a.fmt)
+            if reason:
+                return dict(result,status='unsupported',reason=reason)
             actual=None
             try:
                 if 'action' in spec:

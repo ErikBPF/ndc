@@ -66,6 +66,41 @@ class InterfaceTests(unittest.TestCase):
             self.assertNotEqual(p.returncode,0)
             self.assertEqual(json.loads((root/'plan0.json').read_text()),plans[0])
 
+    def test_help_does_not_execute_workspace_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);marker=root/'executed'
+            (root/'bench.conf').write_text(f'touch "{marker}"\n')
+            p=subprocess.run([str(ROOT/'ndc/run.sh'),'--help'],capture_output=True,text=True,
+                             env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE=tmp))
+            self.assertFalse(marker.exists(),'help executed workspace shell code')
+            self.assertEqual(p.returncode,0,p.stderr)
+            self.assertIn('usage:',p.stdout)
+
+    def test_check_does_not_execute_workspace_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);marker=root/'executed';bin_dir=root/'bin';bin_dir.mkdir()
+            (root/'bench.conf').write_text(f'touch "{marker}"\n')
+            for tool in ('python3','shellcheck'):
+                path=bin_dir/tool;path.write_text('#!/bin/sh\nexit 0\n');path.chmod(0o755)
+            p=subprocess.run([str(ROOT/'ndc/run.sh'),'check'],capture_output=True,text=True,
+                             env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE=tmp,
+                                      PATH=str(bin_dir)+os.pathsep+os.environ['PATH']))
+            self.assertEqual(p.returncode,0,p.stderr)
+            self.assertFalse(marker.exists(),'check executed workspace shell code')
+
+    def test_relative_workspace_stays_stable_in_qualification_subcommands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);workspace=root/'relative';workspace.mkdir()
+            (workspace/'scale.txt').write_text('0.0083')
+            p=subprocess.run([str(ROOT/'ndc/run.sh'),'qualify-engine','vanilla'],cwd=tmp,
+                             capture_output=True,text=True,
+                             env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE='relative'))
+            self.assertNotEqual(p.returncode,0)  # Data absent; the first gate must fail.
+            self.assertFalse((workspace/'relative').exists(),'child command changed workspace')
+            summaries=list(workspace.glob('results/qualification-*/qualification.json'))
+            self.assertEqual(len(summaries),1)
+            self.assertEqual(json.loads(summaries[0].read_text())['checks'][0]['stage'],'size-check')
+
     def test_candidate_qualification_records_failure_and_stops(self):
         qualification=ROOT/'ndc/qualification.py'
         self.assertTrue(qualification.exists(),'candidate qualification command missing')

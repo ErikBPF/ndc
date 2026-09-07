@@ -58,6 +58,12 @@ copies of the harness. Keep a pinned checkout or a complete source bundle with r
 
 ## Commands
 
+`./ndc/run.sh --help` lists entry points without entering Nix or reading workspace
+configuration. `check` runs repository checks without sourcing `bench.conf`.
+Workspace paths are resolved before child commands run. Benchmark execution still
+sources `bench.conf`; use only trusted workspaces and candidate artifacts.
+
+
 | Command | Behavior |
 |---|---|
 | `./ndc/run.sh setup` | Download and verify Spark/Comet/Iceberg/Delta artifacts |

@@ -7,6 +7,7 @@ import sys
 
 from provenance import identity
 from schedule import validate_plan
+from mutations import unsupported_reason
 
 
 def load_cells(directory):
@@ -40,6 +41,8 @@ def load_cells(directory):
                 raise ValueError(f'{path.name}: duplicate sample')
             samples.add(key)
             if r['status'] == 'unsupported':
+                if not unsupported_reason(manifest[r['q']],cell['fmt']):
+                    raise ValueError(f'{path.name}: unsupported status for supported workload {key}')
                 continue
             if (r['status'] != 'ok' or r.get('valid') is not True
                     or not math.isfinite(r['ms']) or r['ms'] <= 0

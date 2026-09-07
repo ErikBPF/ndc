@@ -2,6 +2,12 @@
 from pathlib import Path
 
 
+def unsupported_reason(spec,fmt):
+    if fmt=='parquet' and spec.get('action') in ('update','delete'):
+        return 'Parquet has no transactional row mutation'
+    return None
+
+
 def expected_state(base, operation):
     base = [(key, dict(payload)) for key, payload in base]
     if operation == 'append':

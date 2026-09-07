@@ -10,6 +10,8 @@ neither Spark APIs nor its session model define the benchmark’s scope.
 |---|---|---|
 | Spark, with optional Comet | [Runner guide](../ndc/README.md) | [`ndc/run.sh`](../ndc/run.sh) |
 
+For the bundled runner, see [Comet PR and SF1 validation](comet-validation.md).
+
 Each implementation documents its own dependencies, supported formats, execution
 settings and qualification commands. The table lists scripts available in this
 repository; it does not restrict which engines can implement NDC.
