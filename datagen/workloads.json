@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "dataset_schema_version": 2,
+  "workloads": {
+    "lineitem_totals": {
+      "description": "Expand lineitems; group by o_orderkey; return child count and sum(l_extendedprice * l_discount).",
+      "expansion": "inner",
+      "columns": ["o_orderkey", "item_count", "revenue"],
+      "order_by": ["o_orderkey"],
+      "numeric_comparison": "exact",
+      "empty_parent": "omit"
+    },
+    "outer_item_counts": {
+      "description": "Expand lineitems preserving parents; group by o_orderkey; count non-null l_linenumber values.",
+      "expansion": "outer",
+      "columns": ["o_orderkey", "item_count"],
+      "order_by": ["o_orderkey"],
+      "numeric_comparison": "exact",
+      "empty_parent": "retain with zero count"
+    }
+  },
+  "expansion_contract": {
+    "null_collection": {"inner_rows": 0, "outer_rows": 1},
+    "empty_collection": {"inner_rows": 0, "outer_rows": 1},
+    "one_null_element": {"inner_rows": 1, "outer_rows": 1},
+    "duplicates": "preserve multiplicity",
+    "outer_placeholder": "null child"
+  }
+}

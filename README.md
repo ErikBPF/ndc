@@ -43,6 +43,13 @@ and correctness requirements remain shared.
 Copy and paste the [agent usage prompt](docs/agent-usage.md) into your agent to
 guide setup, correctness qualification, measurement and reporting.
 
+## Shared data across engines
+
+The [data-model one-pager](docs/data-contract.md) defines a lossless nested schema,
+[standalone preparation](datagen/README.md) and [dialect-specific DDL/query templates](engines/README.md).
+Version 2 is a separate shared-data path; existing measurement suites keep their
+dataset contracts.
+
 ## Validity before comparison
 
 Every timed repetition is checked, including complete rows, duplicate multiplicity,

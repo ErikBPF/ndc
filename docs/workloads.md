@@ -17,6 +17,10 @@ preserving those contracts. See [engine integration](engines.md).
 
 ## Data contracts
 
+The separate [version 2 shared-data contract](data-contract.md) retains all order
+and line-item fields. The measurement suites below continue using the existing
+projection and fixtures; their results must not be mixed with version 2 inputs.
+
 - TPC-H: DuckDB's `tpch` extension supplies eight base tables. `sizes.csv` records
   exact counts for 0.0083, 0.5, 1 and 10, including nation and region.
 - `orders_nested`: order headers plus ordered `array<struct>` line items. This is
