@@ -3,12 +3,39 @@
 set -euo pipefail
 CODE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$CODE")
+usage() { printf '%s\n' 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|compare <label=result.json>...|experiment <spec.json> --out <directory>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; }
+if [[ ${1:-} == --help || ${1:-} == -h || ${1:-} == help ]]; then usage; exit 0; fi
+if [[ $# == 0 ]]; then usage; exit 2; fi
 if [[ ${NDC_IN_ENV:-} != 1 ]]; then
   exec nix develop "path:$ROOT/nix" -c env NDC_IN_ENV=1 bash "$0" "$@"
+fi
+if [[ $1 == check || $1 == test ]]; then
+  cd "$ROOT"
+  python3 -m unittest discover -s tests -v
+  shellcheck ndc/run.sh
+  bash -n ndc/run.sh
+  exit 0
+fi
+if [[ $1 == compare || $1 == experiment ]]; then
+  command=$1; shift
+  exec python3 "$CODE/$command.py" "$@"
+fi
+if [[ ${NDC_RESOURCE_SCOPE:-0} != 1 && ( -n ${NDC_CPU_LIMIT:-} || -n ${NDC_MEMORY_LIMIT:-} ) ]]; then
+  scope=(--user --scope --quiet)
+  if [[ -n ${NDC_CPU_LIMIT:-} ]]; then
+    [[ $NDC_CPU_LIMIT =~ ^[1-9][0-9]{0,3}$ ]] || { echo 'NDC_CPU_LIMIT must be a positive integer below 10000' >&2; exit 2; }
+    scope+=(-p "CPUQuota=$((NDC_CPU_LIMIT * 100))%")
+  fi
+  if [[ -n ${NDC_MEMORY_LIMIT:-} ]]; then
+    [[ $NDC_MEMORY_LIMIT =~ ^[1-9][0-9]*[KMGTP]?$ ]] || { echo 'Invalid NDC_MEMORY_LIMIT (example: 16G)' >&2; exit 2; }
+    scope+=(-p "MemoryMax=$NDC_MEMORY_LIMIT")
+  fi
+  exec systemd-run "${scope[@]}" env NDC_RESOURCE_SCOPE=1 bash "$0" "$@"
 fi
 export NDC_WORKSPACE=${NDC_WORKSPACE:-$ROOT/workspaces/default}
 mkdir -p "$NDC_WORKSPACE"
 cd "$NDC_WORKSPACE"
+export NDC_WORKSPACE="$PWD"
 if [[ -f bench.conf ]]; then
   # shellcheck disable=SC1091
   source bench.conf
@@ -22,6 +49,7 @@ COMET_JAR=${COMET_JAR:-$JARDIR/comet-spark-spark4.1_2.13-1.0.0.jar}
 ICEBERG_JAR=${ICEBERG_JAR:-$JARDIR/iceberg-spark-runtime-4.1_2.13-1.11.0.jar}
 DELTA_JAR=${DELTA_JAR:-$JARDIR/delta-spark_2.13-4.3.1.jar}
 DELTA_STORAGE_JAR=${DELTA_STORAGE_JAR:-$JARDIR/delta-storage-4.3.1.jar}
+printf 'NDC stage=%s starting\n' "$1"
 MASTER=${SPARK_MASTER:-local[4]}
 DMEM=${SPARK_DRIVER_MEM:-8g}
 
@@ -70,16 +98,22 @@ spark_run() {
     --layout-mode "${LAYOUT_MODE:-matched}" --validation "${VALIDATION:-collect}")
   [[ $eng != comet ]] || args+=(--comet)
   [[ $drop != yes ]] || args+=(--drop-caches)
+  printf 'NDC candidate=%s engine=%s format=%s starting\n' "${NDC_CANDIDATE:-$eng}" "$eng" "$fmt"
+  : > "$campaign/spark_${eng}_${fmt}.stdout"
   spark-submit "${JVM_FLAGS[@]}" "$CODE/spark_poc.py" "${args[@]}" > "$campaign/spark_${eng}_${fmt}.stdout" 2>&1 &
   local spid=$! rc=0
+  tail --pid="$spid" --sleep-interval=0.1 -n +1 -f "$campaign/spark_${eng}_${fmt}.stdout" | grep --line-buffered '^NDC ' &
+  local progress_pid=$!
   python3 "$CODE/monitor.py" "$spid" "$mon" "${MONITOR_INTERVAL:-0.2}" &
   local mpid=$!
   wait "$spid" || rc=$?
   wait "$mpid" || rc=1
+  wait "$progress_pid" || true
   if [[ -f $out ]]; then
     python3 "$CODE/merge_monitor.py" "$out" "$mon" || rc=1
   fi
-  tail -3 "$campaign/spark_${eng}_${fmt}.stdout"
+  [[ $rc == 0 ]] || tail -20 "$campaign/spark_${eng}_${fmt}.stdout"
+  printf 'NDC candidate=%s engine=%s format=%s exit=%s\n' "${NDC_CANDIDATE:-$eng}" "$eng" "$fmt" "$rc"
   return "$rc"
 }
 
@@ -197,6 +231,5 @@ PY
   throughput|shared-throughput) SUITE=${SUITE:-ds} STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-}" shared-throughput ;;
   bundle) python3 "$CODE/bundle.py" "${2:?campaign required}" ;;
   report) python3 "$CODE/report.py" "${2:?campaign directory required}" "${2}/report.md" ;;
-  test|check) cd "$ROOT"; python3 -m unittest discover -s tests -v; shellcheck ndc/run.sh; bash -n ndc/run.sh ;;
-  *) echo 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; exit 2 ;;
+  *) usage; exit 2 ;;
 esac

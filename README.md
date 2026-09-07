@@ -38,6 +38,11 @@ To support another engine, follow the [implementation contract](docs/engines.md)
 SQL dialects, storage formats and execution models may differ; workload semantics
 and correctness requirements remain shared.
 
+### Using a coding agent
+
+Copy and paste the [agent usage prompt](docs/agent-usage.md) into your agent to
+guide setup, correctness qualification, measurement and reporting.
+
 ## Validity before comparison
 
 Every timed repetition is checked, including complete rows, duplicate multiplicity,
@@ -57,6 +62,8 @@ weighted score or an automatic significance verdict.
 - [Benchmark contract and engine scripts](docs/engines.md)
 - [Workloads and schemas](docs/workloads.md)
 - [Measurement and validity rules](docs/methodology.md)
+- [Candidate comparisons and experiments](docs/experiments.md)
+- [TPC-H and TPC-DS alignment](docs/tpc-alignment.md)
 - [Test interface compared with TPC-DS](docs/test-interface.md)
 - [Answer provenance](ndc/answers/README.md)
 - [Validation and CI](docs/validation.md)
@@ -67,9 +74,4 @@ immutable artifact bundle, including source identity, raw samples, plans and
 checksums. Results from another harness revision require qualification under that
 revision’s measurement and validity rules.
 
-<details>
-<summary>An Easter egg in the initials</summary>
-
-NDC also hides “Ninho de Cobra” — Portuguese for “snake’s nest.”
-
-</details>
+NDC also stands for “Ninho de Cobra,” a nickname for the benchmark for my Brazilian friends.

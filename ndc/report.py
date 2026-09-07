@@ -7,50 +7,60 @@ import sys
 
 from provenance import identity
 from schedule import validate_plan
+from mutations import unsupported_reason
+
+
+def load_cell(path):
+    path=Path(path)
+    plan_path=path.parent/'plan.json'
+    frozen=json.loads(plan_path.read_text()) if plan_path.exists() else None
+    cell = json.loads(path.read_text())
+    if not isinstance(cell,dict) or cell.get('schema_version') != 2 or cell.get('parity_ok') is not True:
+        raise ValueError(f'{path.name}: invalid or legacy cell')
+    if not cell.get('results'):
+        raise ValueError(f'{path.name}: empty results')
+    manifest = cell.get('manifest')
+    if not isinstance(manifest, dict) or not manifest or identity(manifest) != cell.get('manifest_id'):
+        raise ValueError(f'{path.name}: missing or inconsistent manifest')
+    if 'phase' in cell['comparison'] or 'plan' in cell:
+        plan=validate_plan(cell['plan'])
+        if (identity(plan)!=cell.get('plan_id') or plan['manifest']!=manifest
+                or plan['phase']!=cell['comparison'].get('phase')
+                or plan['stream_model']!=cell['comparison'].get('stream_model')
+                or any(cell['comparison'].get(k)!=v for k,v in plan['settings'].items())
+                or (frozen is not None and plan!=frozen)):
+            raise ValueError(f'{path.name}: incompatible frozen plan')
+        observed=[{k:r[k] for k in ('q','run','stream')} for r in cell['results']]
+        if observed!=plan['samples']:
+            raise ValueError(f'{path.name}: execution order differs from frozen schedule')
+    samples = set()
+    for r in cell['results']:
+        key = (r['q'], r['run'], r.get('stream', 0))
+        if key in samples:
+            raise ValueError(f'{path.name}: duplicate sample')
+        samples.add(key)
+        if r['status'] == 'unsupported':
+            if not unsupported_reason(manifest[r['q']],cell['fmt']):
+                raise ValueError(f'{path.name}: unsupported status for supported workload {key}')
+            continue
+        if not r.get('answer_id'):raise ValueError(f'{path.name}: missing answer identity')
+        if (r['status'] != 'ok' or r.get('valid') is not True
+                or not math.isfinite(r['ms']) or r['ms'] <= 0
+                or r['cache'] == 'drop-failed'):
+            raise ValueError(f'{path.name}: invalid sample {key}')
+    runs = cell['comparison']['runs']
+    streams = cell['comparison']['streams']
+    expected = {(q, i, s) for q in manifest
+                for i in range(runs) for s in range(streams)}
+    if samples != expected:
+        raise ValueError(f'{path.name}: incomplete samples')
+    return cell
 
 
 def load_cells(directory):
     cells = {}
-    plan_path=Path(directory)/'plan.json'
-    frozen=json.loads(plan_path.read_text()) if plan_path.exists() else None
     for path in sorted(Path(directory).glob('spark_*.json')):
-        cell = json.loads(path.read_text())
-        if cell.get('schema_version') != 2 or cell.get('parity_ok') is not True:
-            raise ValueError(f'{path.name}: invalid or legacy cell')
-        if not cell.get('results'):
-            raise ValueError(f'{path.name}: empty results')
-        manifest = cell.get('manifest')
-        if not isinstance(manifest, dict) or not manifest or identity(manifest) != cell.get('manifest_id'):
-            raise ValueError(f'{path.name}: missing or inconsistent manifest')
-        if 'phase' in cell['comparison'] or 'plan' in cell:
-            plan=validate_plan(cell['plan'])
-            if (identity(plan)!=cell.get('plan_id') or plan['manifest']!=manifest
-                    or plan['phase']!=cell['comparison'].get('phase')
-                    or plan['stream_model']!=cell['comparison'].get('stream_model')
-                    or any(cell['comparison'].get(k)!=v for k,v in plan['settings'].items())
-                    or (frozen is not None and plan!=frozen)):
-                raise ValueError(f'{path.name}: incompatible frozen plan')
-            observed=[{k:r[k] for k in ('q','run','stream')} for r in cell['results']]
-            if observed!=plan['samples']:
-                raise ValueError(f'{path.name}: execution order differs from frozen schedule')
-        samples = set()
-        for r in cell['results']:
-            key = (r['q'], r['run'], r.get('stream', 0))
-            if key in samples:
-                raise ValueError(f'{path.name}: duplicate sample')
-            samples.add(key)
-            if r['status'] == 'unsupported':
-                continue
-            if (r['status'] != 'ok' or r.get('valid') is not True
-                    or not math.isfinite(r['ms']) or r['ms'] <= 0
-                    or r['cache'] == 'drop-failed'):
-                raise ValueError(f'{path.name}: invalid sample {key}')
-        runs = cell['comparison']['runs']
-        streams = cell['comparison']['streams']
-        expected = {(q, i, s) for q in manifest
-                    for i in range(runs) for s in range(streams)}
-        if samples != expected:
-            raise ValueError(f'{path.name}: incomplete samples')
+        cell=load_cell(path)
         key = (cell['engine'], cell['fmt'])
         if key in cells:
             raise ValueError(f'duplicate cell {key}')
@@ -91,9 +101,10 @@ def load_cells(directory):
 def render(cells):
     comparison=next(iter(cells.values()))['comparison']
     lines = ['# NDC results', '',
-             f'Phase: {comparison.get("phase", "legacy")}; stream model: {comparison.get("stream_model", "unspecified")}; validation: {comparison.get("validation", "collect")}.', '',
+             f'Intent: {next(iter(cells.values())).get("run_intent", "unrecorded")}; phase: {comparison.get("phase", "legacy")}; stream model: {comparison.get("stream_model", "unspecified")}; validation: {comparison.get("validation", "collect")}.', '',
              'TPC-H-derived; TPC-DS-inspired. Not comparable to published TPC results.', '',
              'Ratios are Spark / Comet medians. No overall score or significance verdict.', '',
+             'Exploratory timings: this report does not establish balanced candidate execution or statistical significance.', '',
              '| Format | Family | Query | Spark ms | Comet ms | Ratio | Samples | Range ms (Spark / Comet) |',
              '|---|---|---|---:|---:|---:|---:|---|']
     for fmt in sorted({f for _, f in cells}):

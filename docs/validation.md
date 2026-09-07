@@ -5,17 +5,28 @@ The bundled Spark runner’s correctness checks are defined in the repository an
 [Security CI](../.github/workflows/security.yml) runs separately.
 These checks do not establish performance claims or TPC compliance.
 
-## Published check records
+## Check workflow results
 
-| Revision | Correctness | Security |
-|---|---|---|
-| Baseline `6dfdd32` | [Passed](https://github.com/ErikBPF/ndc/actions/runs/34086563045) | [Passed](https://github.com/ErikBPF/ndc/actions/runs/34086563026) |
-| Distributed validation `2f6b06f` | [Passed](https://github.com/ErikBPF/ndc/actions/runs/34088141785) | [Passed](https://github.com/ErikBPF/ndc/actions/runs/34088141756) |
+Inspect the [correctness workflow runs](https://github.com/ErikBPF/ndc/actions/workflows/ci.yml)
+and [security workflow runs](https://github.com/ErikBPF/ndc/actions/workflows/security.yml)
+for the revision being evaluated. A pending or failed run is not qualification
+evidence. Check the revision and individual jobs before citing a result.
 
-For newer revisions, inspect the [correctness workflow runs](https://github.com/ErikBPF/ndc/actions/workflows/ci.yml)
-and [security workflow runs](https://github.com/ErikBPF/ndc/actions/workflows/security.yml).
-A pending or failed run is not qualification evidence. Check the revision and
-individual jobs before citing a result.
+## Evidence integrity
+
+Result cells embed the measured manifest and frozen schedule. The reporter checks
+identity, coverage, execution order and every declared repetition/stream; removing
+a workload from all cells must still fail. Supported results require complete
+answer identities. Unsupported markers cannot substitute for failed reads.
+
+Sizing checks require all eight TPC-H entity counts in both the reference and live
+results. Evidence bundles verify measured dataset/format identities and hash the
+source bytes selected for the archive. Regenerating data or changing measured
+source requires fresh results before bundling.
+
+See [harness tests](../tests/test_harness.py),
+[provenance tests](../tests/test_provenance.py) and
+[measurement limits](methodology.md) for the checks and their boundaries.
 
 ## Reproducible checks
 

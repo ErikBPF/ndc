@@ -46,7 +46,7 @@ TPC-DS driver.
 
 Shared-session concurrency is a property of the Spark runner. Other engines may
 use independent client sessions and must report that distinction. NDC does not
-require a Spark session model or the TPC-DS refresh protocol. The current phase
+require a Spark session model or the TPC-DS refresh protocol. The bundled phase
 commands compose from existing primitives; a prescribed multi-phase driver and
 a TPC aggregate score are not implemented. See [engine integration](engines.md).
 
