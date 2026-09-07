@@ -1,6 +1,6 @@
 # Implementation review — 2026-09-07
 
-Scope: the uncommitted NDC expansion, including workload contracts, runner,
+Scope: the NDC expansion before baseline commit `6dfdd32`, including workload contracts, runner,
 validation, reporting, evidence packaging, CI and documentation. Reviewed against
 the requested nested-data scan/read/write/compute benchmark and its TPC-H-derived,
 TPC-DS-inspired positioning. No official TPC compliance or performance claim.
@@ -32,8 +32,8 @@ Remaining limits: full-output oracles must fit driver memory; process sampling c
 miss short-lived work; selected runtime settings are recorded rather than every
 Spark setting. The Spark installation marker trusts a previously installed local
 cache; it does not rehash the extracted distribution on every use. Qualification
-runs do not establish performance significance. GitHub-hosted CI execution remains
-unverified until the changes are pushed.
+runs do not establish performance significance. GitHub-hosted correctness and security subsequently passed for baseline commit
+`6dfdd32`; run links and coverage are in the Apollo validation log.
 
 ## Validation
 

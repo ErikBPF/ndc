@@ -78,9 +78,15 @@ are staged beside their campaign directories, with local copies under the `ndc`
 checkout's ignored `results/validation/`. Source scripts preserve executable modes.
 The archive includes data inventories, not the potentially large Parquet payloads.
 
-CI workflows are implemented but have not been pushed or executed by GitHub in
-this session. No release or public performance result was published. A durable
-public artifact URL must be added when publishing a future benchmark claim.
+GitHub-hosted qualification subsequently passed for baseline commit `6dfdd32`:
+[benchmark correctness](https://github.com/ErikBPF/ndc/actions/runs/34086563045)
+and [security](https://github.com/ErikBPF/ndc/actions/runs/34086563026).
+The hosted PR job passed 25 harness tests, pinned runtime installation, tiny data
+qualification, the vanilla/Parquet workload suite, and wrong-answer rejection.
+Its diagnostic artifact has 14-day retention. The six-cell validation remains the
+Apollo evidence above; scheduled/manual CI selects all engines and formats.
+No release or public performance result was published. A durable public artifact
+URL must be added when publishing a future benchmark claim.
 
 ## Review revision
 
