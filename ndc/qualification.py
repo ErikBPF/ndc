@@ -21,7 +21,7 @@ def main():
             raise ValueError('candidate qualification requires sf0.0083; use matrix for larger scales')
         env=dict(os.environ,NDC_CAMPAIGN_DIR=str(directory/'campaign'),ENGINES=a.engine,
                  FORMATS=a.format,SUITE='all',RUNS='1',STREAMS='1',WARMUPS='0',
-                 NDC_PHASE='qualification',CACHE='uncontrolled',DROP_CACHES='no')
+                 NDC_PHASE='qualification',NDC_RUN_INTENT='correctness',CACHE='uncontrolled',DROP_CACHES='no')
         env.pop('QUERIES',None)
         for stage in ('size-check','invariants','qualify-references','parity','matrix'):
             with open(directory/f'{stage}.log','w') as log:

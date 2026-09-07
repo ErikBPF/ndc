@@ -10,6 +10,10 @@ neither Spark APIs nor its session model define the benchmark’s scope.
 |---|---|---|
 | Spark, with optional Comet | [Runner guide](../ndc/README.md) | [`ndc/run.sh`](../ndc/run.sh) |
 
+For named result comparisons and balanced command execution, see
+[candidate experiments](experiments.md). These reuse the existing result contract;
+they do not add an engine execution plugin API.
+
 For the bundled runner, see [Comet PR and SF1 validation](comet-validation.md).
 
 Each implementation documents its own dependencies, supported formats, execution

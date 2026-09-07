@@ -2,6 +2,7 @@
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -26,6 +27,7 @@ def positive(value):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--comet',action='store_true')
+    p.add_argument('--intent',choices=['correctness','performance'],default=os.environ.get('NDC_RUN_INTENT','correctness'))
     p.add_argument('--plan')
     p.add_argument('--phase',choices=PHASES,default='matrix')
     p.add_argument('--validation',choices=['collect','distributed'],default='collect')
@@ -45,6 +47,7 @@ def main():
     a=p.parse_args()
     distributed=a.validation=='distributed'
     if a.warmups<0: p.error('warmups must be nonnegative')
+    if a.intent=='performance' and a.warmups<1: p.error('performance intent requires warmups')
     if a.drop_caches: a.cache='cold'
     if a.cache=='cold' and a.streams>1: p.error('cold cache requires a single stream')
     if a.cache=='warm' and a.warmups<1: p.error('warm cache requires a warm-up')
@@ -71,6 +74,7 @@ def main():
                  .config('spark.shuffle.manager','org.apache.spark.sql.comet.execution.shuffle.CometShuffleManager')
                  .config('spark.comet.explain.fallback.enabled','true')
                  .config('spark.memory.offHeap.enabled','true').config('spark.memory.offHeap.size','2g'))
+    print('NDC stage=session starting',flush=True)
     spark=builder.getOrCreate()
     spark.sparkContext.setLogLevel('ERROR')
     if distributed:
@@ -85,6 +89,7 @@ def main():
         elif fmt=='iceberg': df=spark.table(f'local_tpch.{table}')
         else: df=spark.read.format('delta').load(str(datadir.parent/'data_delta'/table))
         df.createOrReplaceTempView(table)
+    print('NDC stage=input-validation starting',flush=True)
     env=environment(spark,root)
     base_id=dataset(datadir)['dataset_id']
     physical_id=format_identity(datadir,a.fmt)
@@ -92,7 +97,7 @@ def main():
         marker=json.loads((datadir.parent/f'format-{a.fmt}.json').read_text())
         if marker['dataset_id']!=base_id or marker['format_id']!=physical_id:
             raise ValueError('stale or modified table-format inputs; rebuild the format')
-    record={'schema_version':2,'campaign_id':a.campaign_id or str(uuid.uuid4()),
+    record={'schema_version':2,'run_intent':a.intent,'campaign_id':a.campaign_id or str(uuid.uuid4()),
             'dataset_id':base_id,'format_id':physical_id,'manifest_id':identity(manifest),'manifest':manifest,'plan':plan,'plan_id':identity(plan),
             'comparison':{'runs':a.runs,'streams':a.streams,'warmups':a.warmups,'seed':a.seed,
                           'cache':a.cache,'layout_mode':a.layout_mode,'sf':a.sf,'validation':a.validation,
@@ -110,7 +115,8 @@ def main():
         spark.conf.set('spark.sql.catalog.ndc_write.warehouse',str(scratch))
     references={}
     try:
-        for name,spec in manifest.items():
+        for index,(name,spec) in enumerate(manifest.items(),1):
+            print(f'NDC stage=reference progress={index}/{len(manifest)} query={name}',flush=True)
             if 'action' in spec: continue
             reference=spark.sql(spec['reference_text'])
             expected=reference.rdd.map(tuple) if distributed else [tuple(r) for r in reference.collect()]
@@ -195,7 +201,8 @@ def main():
             finally:
                 if distributed and actual is not None:actual.unpersist()
             return result
-        for sample in plan['warmups']:
+        for index,sample in enumerate(plan['warmups'],1):
+            print(f'NDC stage=warmup progress={index}/{len(plan["warmups"])} query={sample["q"]}',flush=True)
             name=sample['q']
             result=execute(name,sample['run'],sample['stream'],True)
             if result['status'] not in ('ok','unsupported'):
@@ -203,12 +210,12 @@ def main():
                 raise ValueError(f'warm-up failed: {name}: {result.get("error", "invalid")}')
         def stream_run(stream):
             results=[]
-            for sample in plan['samples']:
-                if sample['stream']!=stream:continue
+            samples=[s for s in plan['samples'] if s['stream']==stream]
+            for index,sample in enumerate(samples,1):
                 name,run=sample['q'],sample['run']
                 result=execute(name,run,stream)
                 results.append(result)
-                print(f'{name} stream={stream} run={run} {result["status"]}',flush=True)
+                print(f'NDC stage=query stream={stream} progress={index}/{len(samples)} query={name} run={run} status={result["status"]}',flush=True)
             return results
         with ThreadPoolExecutor(max_workers=a.streams) as pool:
             for results in pool.map(stream_run,range(a.streams)): record['results'].extend(results)

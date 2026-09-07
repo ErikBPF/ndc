@@ -29,6 +29,12 @@ def dataset(directory):
     return record
 
 
+def candidate_metadata():
+    return {'label':os.environ.get('NDC_CANDIDATE','unrecorded'),
+            'revision':os.environ.get('NDC_CANDIDATE_REVISION','unrecorded'),
+            'build_profile':os.environ.get('NDC_BUILD_PROFILE','unrecorded')}
+
+
 def environment(spark, root):
     code={str(p.relative_to(root)):digest(p) for p in sorted((root/'ndc').rglob('*'))
           if p.is_file() and p.suffix in ('.py','.sh','.sql','.json','.out','.csv','.conf')
@@ -46,7 +52,7 @@ def environment(spark, root):
         try: config[k]=spark.conf.get(k)
         except Exception: config[k]=None
     return {'git_commit':commit.stdout.strip() or os.environ.get('NDC_SOURCE_COMMIT'),'source_id':identity(code),'source_files':code,
-            'artifacts':artifacts,'spark':spark.version,'python':platform.python_version(),
+            'candidate':candidate_metadata(),'artifacts':artifacts,'spark':spark.version,'python':platform.python_version(),
             'java':spark.sparkContext._jvm.java.lang.System.getProperty('java.version'),
             'host':platform.node(),'os':platform.platform(),'cpu_count':os.cpu_count(),
             'cpu_affinity':sorted(os.sched_getaffinity(0)),

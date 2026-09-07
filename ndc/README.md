@@ -198,3 +198,61 @@ SQL literals are frozen as written; no query parameter generator is implied.
 `plan <out.json>` previews the same matrix schedule without executing it. Relative plan output paths
 resolve inside `NDC_WORKSPACE`. Serial
 `latency` and `maintenance` enforce one stream; concurrent phases reject writes.
+
+## Candidate experiments
+
+Save this specification as `candidates.json` in the repository root, replacing
+artifact paths and revisions with the reviewed builds:
+
+```json
+{
+  "candidates": [
+    {
+      "label": "base",
+      "command": ["./ndc/run.sh", "latency"],
+      "env": {"ENGINES": "comet", "COMET_JAR": "/path/to/base.jar"},
+      "revision": "BASE_REVISION",
+      "build_profile": "release"
+    },
+    {
+      "label": "candidate",
+      "command": ["./ndc/run.sh", "latency"],
+      "env": {"ENGINES": "comet", "COMET_JAR": "/path/to/candidate.jar"},
+      "revision": "CANDIDATE_REVISION",
+      "build_profile": "release"
+    }
+  ]
+}
+```
+
+Use absolute workspace and artifact paths. Each candidate must select one engine
+and one format. Prepare and qualify the data/candidates before an experiment.
+
+```sh
+export NDC_WORKSPACE="$PWD/workspaces/tpch-review"
+export FORMATS=iceberg SUITE=read
+export NDC_CPU_LIMIT=4 NDC_MEMORY_LIMIT=16G
+./ndc/run.sh experiment candidates.json --out experiment --mode performance \
+  --operator CometIcebergNativeScan \
+  --require-operator candidate q1_nested_explode CometIcebergNativeScan
+```
+
+The performance default for two candidates is four passes, each using a fresh
+process, one validated warmup per query and one timed sample. Candidate positions
+are balanced across passes. The CPU and memory settings use native systemd user
+scopes; a missing/unavailable systemd user manager fails the command instead of
+silently running uncapped. CPU quota is not CPU pinning. Omit these settings when
+resource limits are already enforced by your execution environment. Effective
+cgroup limits, execution threads, driver heap and off-heap settings are recorded.
+`SPARK_MASTER`, `SPARK_DRIVER_MEM` and the existing runner configuration retain
+their meanings; a memory cap does not automatically resize the driver heap.
+
+Ordinary commands default to `NDC_RUN_INTENT=correctness`. Candidate label,
+revision and profile can also be supplied with `NDC_CANDIDATE`,
+`NDC_CANDIDATE_REVISION`, and `NDC_BUILD_PROFILE`. These are declared metadata;
+JAR checksums are computed independently. Progress shows stages, warmups, and
+per-stream query completion while full runtime output remains in the cell log.
+
+`compare` and `experiment` resolve CLI paths from the caller's directory and do
+not source workspace `bench.conf`. Their candidate engine commands still load
+that trusted configuration. See [comparison rules](../docs/experiments.md).

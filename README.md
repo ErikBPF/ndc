@@ -57,6 +57,7 @@ weighted score or an automatic significance verdict.
 - [Benchmark contract and engine scripts](docs/engines.md)
 - [Workloads and schemas](docs/workloads.md)
 - [Measurement and validity rules](docs/methodology.md)
+- [Candidate comparisons and experiments](docs/experiments.md)
 - [TPC-H and TPC-DS alignment](docs/tpc-alignment.md)
 - [Test interface compared with TPC-DS](docs/test-interface.md)
 - [Answer provenance](ndc/answers/README.md)
