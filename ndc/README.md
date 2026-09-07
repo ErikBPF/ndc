@@ -1,7 +1,11 @@
-# Running NDC
+# Running NDC with Spark
 
 NDC is TPC-H-derived and TPC-DS-inspired; see the [root README](../README.md) and
 [methodology](../docs/methodology.md) for scope and comparison rules.
+
+This guide covers the bundled Spark runner, including Comet. Its CLI choices and
+local deployment limits describe this implementation, not the benchmark contract.
+See [other engines](../docs/engines.md) for porting requirements and current gaps.
 
 Run commands from the repository root. `run.sh` enters the locked Nix environment.
 `NDC_WORKSPACE` selects data/configuration; code stays in the pinned checkout.
@@ -116,7 +120,7 @@ Performance thresholds belong on controlled hardware, not hosted CI runners.
 The workflow does not deploy infrastructure, publish benchmark claims, or run
 host-wide cache drops.
 
-### Outputs larger than driver memory
+## Outputs larger than driver memory
 
 Use `VALIDATION=distributed ./ndc/run.sh matrix`. This preserves complete-row and
 duplicate checks on executors. Read timing includes Python serialization and disk
@@ -130,7 +134,7 @@ collection, and validation above a 1 MiB driver result limit.
 See [the TPC-DS interface comparison](../docs/test-interface.md) for phase mappings
 and current interface gaps.
 
-### Frozen execution schedules
+## Frozen execution schedules
 
 Every matrix or phase command writes `plan.json` before its first Spark launch.
 It contains resolved query/reference SQL, phase, stream model, query seed, warm-ups and

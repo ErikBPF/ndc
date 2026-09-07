@@ -10,6 +10,11 @@ TPC-DS Q67 motivates category ranking; Q80 motivates combining sales/returns
 channels. These are conceptual adaptations with new SQL and synthetic inputs;
 NDC does not generate the DS schema or execute its 99-query suite.
 
+Workload IDs, logical data, expected results and ordering/null semantics define
+the benchmark across engines. SQL files and storage operations in this repository
+are the current Spark implementation; another engine may translate them while
+preserving those contracts. See [engine integration](engines.md).
+
 ## Data contracts
 
 - TPC-H: DuckDB's `tpch` extension supplies eight base tables. `sizes.csv` records
@@ -71,11 +76,12 @@ parent 1's nested `payload.amount`; delete removes parent 1. Compaction preserve
 all logical rows. The tiny append is a transaction-latency probe, not a bulk ingest
 throughput claim; materialization supplies the bulk-write case.
 
-Iceberg uses table operations and `rewrite_data_files`; Delta uses table writes,
+In the bundled Spark runner, Iceberg uses table operations and `rewrite_data_files`; Delta uses table writes,
 UPDATE/DELETE and OPTIMIZE. Parquet supports fresh writes, append, and compaction
 into a new materialized path, but not transactional UPDATE/DELETE. Compaction of
 already compact data may do no work; disclose before/after storage and file counts.
 NDC does not silently replace unsupported transactions with a full-table rewrite.
 
 Single-stream query latency, concurrent read streams, and maintenance are distinct
-experiments. Cold-cache concurrent streams and concurrent maintenance are rejected.
+experiments. The current runner rejects cold-cache concurrent streams and concurrent
+maintenance. Other runners must declare their supported execution combinations.

@@ -1,12 +1,12 @@
 # NDC test interface and TPC-DS
 
-NDC has analogous workflow concepts, but its CLI and execution contract are not
-TPC-DS-compatible. Here, “interface” means commands, configuration, generated
+NDC has analogous workflow concepts, but the bundled Spark CLI and execution
+contract are not TPC-DS-compatible. Here, “interface” means commands, configuration, generated
 workloads, phase sequencing, stream behavior and result artifacts.
 
 ## Current mapping
 
-| Concern | TPC-DS | NDC today |
+| Concern | TPC-DS | Current NDC Spark runner |
 |---|---|---|
 | Data preparation | `dsdgen`; generation and database load | `bootstrap` + `build-scale`: DuckDB TPC-H generation, exports, nested layouts, synthetic shapes and format copies |
 | Query preparation | `dsqgen`; 99 parameterized templates | Fixed SQL in explicit manifests; independent `DATA_SEED` and `QUERY_SEED`; SQL and expanded schedules retained in `plan.json` |
@@ -44,20 +44,20 @@ TPC-DS driver.
   controls permutations. `SEED` remains the fallback. Fixed selectivity cases remain
   fixed; there is no implicit parameter sweep.
 
-The shared-session model remains explicit; separate clients are unnecessary for
-this nested-engine comparison. There is no new multi-phase driver framework or
-TPC-DS refresh protocol. The phase commands compose from the existing primitives,
-and no official-looking aggregate score is introduced.
+Shared-session concurrency is a property of the Spark runner. Other engines may
+use independent client sessions and must report that distinction. NDC does not
+require a Spark session model or the TPC-DS refresh protocol. The current phase
+commands compose from existing primitives; a prescribed multi-phase driver and
+a TPC aggregate score are not implemented. See [engine integration](engines.md).
 
 ## Test disclosure
 
-Describe allocated resources, not machine names or total machine capacity. The
-retained six-cell qualification used a 400% CPU quota, a 16 GiB scope memory cap,
-`local[4]` execution threads, an 8 GiB driver heap, and a configured 2 GiB Comet
-off-heap pool. The quota does not imply four dedicated or pinned cores. Report
-validation mode, dataset size, streams, warm-ups and repetitions alongside these
-limits. The focused Spark validator used `local[2]`, a 2 GiB driver heap and a
-1 MiB driver result-size limit within the same scope limits.
+Describe allocated resources, not machine names or total machine capacity.
+Disclose CPU quota and affinity, scope memory cap, Spark execution threads, driver
+heap and configured Comet off-heap memory. A CPU quota does not imply dedicated
+or pinned cores. Report validation mode, dataset size, streams, warm-ups and
+repetitions alongside these limits. Record different allocations separately for
+focused validators and measurement campaigns.
 
-See [retained validation evidence](validation-2026-09-07.md),
-[commands](../ndc/README.md), and [measurement rules](methodology.md).
+See [validation and CI](validation.md), [commands](../ndc/README.md), and
+[measurement rules](methodology.md).

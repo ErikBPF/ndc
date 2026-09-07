@@ -1,7 +1,10 @@
 # NDC — Nested Data Compute
 
-**Ninho de Cobra** benchmarks scanning, materialized reads, nested computation,
-writes, and maintenance. Its relational baseline and historical `ndc-tpch` suite
+**Ninho de Cobra** is an engine-agnostic benchmark for scanning, materialized reads,
+nested computation, writes, and maintenance. Workload semantics and correctness
+contracts apply across engines. The current implementation targets Spark, with
+vanilla Spark and Comet execution modes; additional engines can implement the same
+contracts using their own SQL dialect and execution model. Its relational baseline and historical `ndc-tpch` suite
 are **derived from TPC-H**. Its qualification discipline, richer analytical
 workloads, and maintenance/throughput separation are **inspired by TPC-DS**.
 Synthetic shape fixtures complement the TPC-H data; they do not alter its entities.
@@ -24,14 +27,14 @@ Synthetic shape fixtures complement the TPC-H data; they do not alter its entiti
 | `read` | 39 | All read/compute cases, excluding writes and maintenance |
 | `all` | 46 | All of the above, without counting subset manifests twice |
 
-Reference engines: Spark 4.1.3 and Spark 4.1.3 with DataFusion Comet 1.0.0.
-Formats: Parquet, Iceberg, Delta. Flat and nested inputs use **matched formats** by
+Current runner: Spark 4.1.3, with optional DataFusion Comet 1.0.0.
+Implemented formats: Parquet, Iceberg, Delta. Flat and nested inputs use **matched formats** by
 default; `LAYOUT_MODE=mixed` reproduces the former flat-Parquet control.
 Parquet update/delete are unsupported, not zero-duration successes.
 
-## Quickstart (Linux x86-64)
+## Spark quickstart (Linux x86-64)
 
-Requires Nix with flakes enabled, network access for initial tool/artifact downloads,
+The bundled Spark runner requires Nix with flakes enabled, network access for initial tool/artifact downloads,
 and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java and
 ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
 
@@ -80,15 +83,17 @@ weighted score or an automatic significance verdict.
 
 ## Documentation
 
+- [Benchmark contract and other engines](docs/engines.md)
+
 - [Workloads and schemas](docs/workloads.md)
 - [Measurement and validity rules](docs/methodology.md)
 - [Commands and CI](ndc/README.md)
 - [Test interface compared with TPC-DS](docs/test-interface.md)
 - [Answer provenance](ndc/answers/README.md)
-- [Benchmark validation](docs/validation-2026-09-07.md)
+- [Validation and CI](docs/validation.md)
 - [Attribution and deviations](NOTICE)
 
-The original published README's speedup figures used the earlier harness. They
-have not been revalidated under the new complete gate; do not treat them as current
-qualification evidence. Public campaign claims should link a complete immutable
-artifact bundle, including source identity, raw samples, plans, and checksums.
+Performance claims must identify the measured implementation and link a complete
+immutable artifact bundle, including source identity, raw samples, plans and
+checksums. Results from another harness revision require qualification under that
+revision’s measurement and validity rules.

@@ -5,6 +5,11 @@ qualification scale, supported operations, timing, and metrics differ from both.
 Results are not comparable to published TPC-H/TPC-DS results; no official TPC
 primary or optional performance metric is calculated.
 
+The workload semantics and correctness requirements apply across engines. The
+timing mechanisms, resource sampler and result schema below describe the current
+Spark runner. Other implementations must disclose their execution and measurement
+model; see [engine integration](engines.md).
+
 ## Timing
 
 In default `VALIDATION=collect` mode, read latency starts immediately before
@@ -81,8 +86,8 @@ the generator's sequential random-number sequence without a driver-sized result
 list. This bounds its memory by one parent but limits oracle generation to one
 task. Synthetic dataset construction itself still uses a driver-side parent list.
 Individual nested rows must fit worker memory, and disk capacity and shuffle
-cost remain practical limits. Distributed validation is currently supported under
-the existing local Spark deployment contract.
+cost remain practical limits. The bundled distributed validator currently supports the local Spark runner;
+other engines may implement equivalent complete-result validation.
 
 The implementation uses Spark's [RDD persistence](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.RDD.persist.html)
 and [partition-local sorting](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.RDD.repartitionAndSortWithinPartitions.html).
@@ -96,7 +101,8 @@ host/CPU/memory information, run order seed, cache treatment, and per-sample sta
 Dataset identity includes physical input file hashes and sizes. `dataset.json`
 provides that inventory. Retain physical file layout and writer versions with it.
 The dedicated `nix/` flake keeps dataset/result trees out of Nix source copies.
-Spark and DuckDB are pinned; format preparation is shared by both engines.
+The bundled Spark and DuckDB versions are pinned; format preparation is shared
+by vanilla Spark and Comet.
 
 Use matched formats for layout effects, a fixed format/layout for engine effects,
 and a fixed engine/layout for format effects. `mixed` explicitly keeps flat
@@ -135,5 +141,7 @@ configuration and commands. `run.sh bundle <campaign>` creates a portable eviden
 archive plus SHA-256 sidecar. Bundling rejects source bytes or dataset/format
 inventories that no longer match the measured cells. Publishing is separate from generation; attach a
 bundle to a release or durable artifact store, then link its immutable location
-from any claim. GitHub CI uploads qualification diagnostics for 14 days; those
+from any claim. References in documentation must resolve to repository content,
+published check runs or published bundles, not private workspace/session records.
+GitHub CI uploads qualification diagnostics for 14 days; those
 expiring artifacts are not a durable public benchmark archive.
