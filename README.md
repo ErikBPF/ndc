@@ -38,6 +38,11 @@ To support another engine, follow the [implementation contract](docs/engines.md)
 SQL dialects, storage formats and execution models may differ; workload semantics
 and correctness requirements remain shared.
 
+### Using a coding agent
+
+Copy and paste the [agent usage prompt](docs/agent-usage.md) into your agent to
+guide setup, correctness qualification, measurement and reporting.
+
 ## Validity before comparison
 
 Every timed repetition is checked, including complete rows, duplicate multiplicity,
