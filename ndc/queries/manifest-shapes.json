@@ -1,0 +1,107 @@
+{
+  "s_leaf": {
+    "sql": "queries/s_leaf.sql",
+    "reference": "queries/s_leaf_ref.sql",
+    "family": "scan",
+    "operation": "leaf-projection",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_many": {
+    "sql": "queries/s_many.sql",
+    "reference": "queries/s_many_ref.sql",
+    "family": "scan",
+    "operation": "multi-leaf-projection",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_full": {
+    "sql": "queries/s_full.sql",
+    "reference": "queries/s_full_ref.sql",
+    "family": "scan",
+    "operation": "full-materialized-read",
+    "layout": "nested",
+    "ordered": false,
+    "oracle": "python-shape"
+  },
+  "s_filter0": {
+    "sql": "queries/s_filter0.sql",
+    "reference": "queries/s_filter0_ref.sql",
+    "family": "scan",
+    "operation": "element-selectivity-0",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_filter1": {
+    "sql": "queries/s_filter1.sql",
+    "reference": "queries/s_filter1_ref.sql",
+    "family": "scan",
+    "operation": "element-selectivity-1",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_filter50": {
+    "sql": "queries/s_filter50.sql",
+    "reference": "queries/s_filter50_ref.sql",
+    "family": "scan",
+    "operation": "element-selectivity-50",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_filter100": {
+    "sql": "queries/s_filter100.sql",
+    "reference": "queries/s_filter100_ref.sql",
+    "family": "scan",
+    "operation": "element-selectivity-100",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_branch": {
+    "sql": "queries/s_branch.sql",
+    "reference": "queries/s_branch_ref.sql",
+    "family": "compute",
+    "operation": "branching-arrays",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_zip": {
+    "sql": "queries/s_zip.sql",
+    "reference": "queries/s_zip_ref.sql",
+    "family": "compute",
+    "operation": "struct-of-arrays",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_map": {
+    "sql": "queries/s_map.sql",
+    "reference": "queries/s_map_ref.sql",
+    "family": "compute",
+    "operation": "map-lookup",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_quantifiers": {
+    "sql": "queries/s_quantifiers.sql",
+    "reference": "queries/s_quantifiers_ref.sql",
+    "family": "compute",
+    "operation": "null-aware-quantifiers",
+    "layout": "nested",
+    "ordered": false
+  },
+  "s_regroup": {
+    "sql": "queries/s_regroup.sql",
+    "reference": "queries/s_regroup_ref.sql",
+    "family": "compute",
+    "operation": "explode-regroup",
+    "layout": "flat",
+    "ordered": false
+  },
+  "s_topn": {
+    "sql": "queries/s_topn.sql",
+    "reference": "queries/s_topn_ref.sql",
+    "family": "compute",
+    "operation": "top-two-sum",
+    "layout": "nested",
+    "ordered": false
+  }
+}

@@ -1,129 +1,84 @@
-# ndc-tpch — Nested Data Compute
+# NDC — Nested Data Compute
 
-`ndc-tpch` is a benchmark over **nested data layouts**, seeded by
-TPC-H (dbgen data + schema). It measures query engines on flat Parquet
-and nested-layout transforms of the same data, and keeps every answer
-pinnable so a speedup can never hide a wrong result. **Ninho de Cobra**
-— the snake nest — for my Brazilian friends.
+**Ninho de Cobra** benchmarks scanning, materialized reads, nested computation,
+writes, and maintenance. Its relational baseline and historical `ndc-tpch` suite
+are **derived from TPC-H**. Its qualification discipline, richer analytical
+workloads, and maintenance/throughput separation are **inspired by TPC-DS**.
+Synthetic shape fixtures complement the TPC-H data; they do not alter its entities.
 
-> The ndc-tpch suite is derived from the TPC Benchmark
-> TPC-H and as such is not comparable to published TPC-H results, as the
-> ndc-tpch results do not comply with the TPC-H Specification.
+> NDC is derived from the TPC Benchmark TPC-H and is not comparable to published
+> TPC-H results; it does not comply with the TPC-H Specification. NDC also draws
+> inspiration from TPC-DS and is not a compliant TPC-DS implementation. Its results
+> are not comparable to published TPC-DS results. No TPC performance metric is used.
 
-Reference engines: vanilla Apache Spark 4.1.3 and Apache Spark with
-[Apache DataFusion Comet](https://github.com/apache/datafusion-comet).
-Any engine that speaks Spark SQL can be added behind the same
-record schema.
+## What runs
 
-## Data
+| Suite | Cases | Purpose |
+|---|---:|---|
+| `full` | 24 | Historical TPC-H-derived query membership; corrected complete validation and top-N semantics |
+| `scan` / `compute` / `depth` | subsets of `full` | Projection controls, manipulation, and singleton-wrapper depth isolation |
+| `shapes` | 13 | Leaf/multiple/full projection, selectivity, nulls, fan-out, branching, maps, zipped arrays, quantifiers, regrouping, top-N |
+| `ds` | 2 | Dimension join + ranking; sales/returns collections + union + rollup |
+| `write` | 4 | Fresh materialization, nested transformation, flat-to-nested construction, append |
+| `maintenance` | 3 | Update, delete, compaction; unsupported operations explicitly recorded |
+| `all` | 46 | All of the above, without counting subset manifests twice |
 
-TPC-H data is generated with dbgen (via the DuckDB `tpch` extension) at a
-declared scale factor and exported to flat Parquet. Nested layouts are
-derived from the same entities by transform — no row is added, dropped,
-or altered; per-order composition is preserved.
+Reference engines: Spark 4.1.3 and Spark 4.1.3 with DataFusion Comet 1.0.0.
+Formats: Parquet, Iceberg, Delta. Flat and nested inputs use **matched formats** by
+default; `LAYOUT_MODE=mixed` reproduces the former flat-Parquet control.
+Parquet update/delete are unsupported, not zero-duration successes.
 
-| Layout | Shape |
-|---|---|
-| flat | 8 TPC-H tables as exported |
-| `orders_nested` | ORDERS + `lineitems array<struct>` (12-col leaf) |
-| `orders_depth1..8` | Q6 leaf wrapped 1–8 times, alternating LIST/STRUCT |
+## Quickstart (Linux x86-64)
 
-Scale factors are recorded with exact dbgen row counts in
-[`ndc/sizes.csv`](ndc/sizes.csv) and asserted at build time
-(`size-check`). The table-format axis (Parquet, Iceberg, Delta) applies
-to the nested side; the flat reference always reads Parquet.
+Requires Nix with flakes enabled, network access for initial tool/artifact downloads,
+and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java and
+ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
 
-## Queries
-
-24 result queries in three families. Every nested variant declares the
-nested operation it stresses, and every query's flat and nested sides
-must agree before any timing counts (row parity).
-
-| Family | Queries | Nested operation exercised |
-|---|---|---|
-| built-in (scan+agg) | 4 | flat scan + filter + group-agg; struct-array scan/unnest; pure higher-order aggregation |
-| depth 1–8 | 8 | the same Q6 leaf behind 1–8 alternating wrappers — the cost of nesting depth itself |
-| extended | 12 (6 pairs) | joins, CASE, IN-lists, string ops, correlated quantifiers as HOFs, top-N (window vs nested sort) |
-
-Query text lives in [`ndc/queries/`](ndc/queries/) as individual `.sql`
-files with manifests per set (`manifest-full.json`, the full 24-query
-set; `manifest-depth.json`, the depth sweep) — the qgen convention of
-TPC-H.
-
-## Answers
-
-Pinned qualification answers ship per scale factor in
-[`ndc/answers/`](ndc/answers/) (`.out` files, one per query, pipe
-separated) for independent verification; wiring them into the automated
-validity gate is part of the planned evaluation-block API. Row parity
-is enforced at run time; a parity failure is recorded as a defect, not
-a timing.
-
-## Metrics
-
-Per query and cell, the record carries: wall-time median over 3 runs,
-native/fallback share (a query that fell back to JVM execution is
-marked), row parity, CPU seconds, peak RSS, and cold-cache IO bytes
-(`cache: cold|warm|drop-failed` recorded per run; page cache is dropped
-between runs). Reported speedups are ratios of medians.
-
-## Fair use and disclosure
-
-Results carry the prescribed disclaimer above wherever they are
-presented. No TPC Primary or Optional Metric is used; engine versions,
-configurations, and host capacity are recorded per run; and all
-deviations from the TPC-H Specification (schema layout, query text, run
-methodology, metrics) are declared in this repository and in each result
-record. See [NOTICE](NOTICE).
-
-## Running
-
-[`ndc/README.md`](ndc/README.md) documents the stage driver and the
-three profiles: `lite` (smoke, not citable), `full` (release
-discipline), `comet-default` (the shipped default kit ending in a
-generated family report).
-
-## Structure
-
-```text
-ndc/
-  run.sh            stage driver: build, profiles, size-check, report
-  spark_poc.py      runner: timing, parity, native/fallback accounting, JSON records
-  monitor.py        sidecar /proc sampler (tree CPU, peak RSS, IO bytes)
-  write_fmt.py      writes the nested table sets to Iceberg / Delta
-  report.py         per family × format verdict report
-  conv.sql, nested.sql, depths.sql     data preparation transforms
-  parity.sql, ext_parity.sql           DuckDB verification suites
-  queries/          24 .sql files + manifests (qgen convention)
-  answers/          pinned per-query answers per scale factor
-  bench.conf        cluster (D11) and storage (D12) targets
-  sizes.csv         recorded dbgen row counts per scale factor
+```sh
+./ndc/run.sh test
+./ndc/run.sh setup
+./ndc/run.sh bootstrap 0.0083 tiny
+export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
+./ndc/run.sh build-scale
+RUNS=1 WARMUPS=0 ./ndc/run.sh matrix       # qualification, not a performance claim
+nix develop "path:$PWD/nix" -c python3 tests/integration.py
 ```
 
-## Results so far
+Defaults: `local[4]`, 8 GiB driver heap, 128 synthetic parents, maximum fan-out 64,
+8 padding fields, seed 7. Comet additionally uses a configured 2 GiB off-heap pool;
+record total host/process limits when comparing engines. Use `SPARK_MASTER` and
+`SPARK_DRIVER_MEM` to fit your machine. The tiny qualification scale is intentionally
+not a TPC publication scale.
 
-First campaign executed on a single 28-core host with local NVMe storage:
-sf 0.5, sf 1, sf 10 — Parquet / Iceberg / Delta × vanilla / Comet, all
-cells parity-green.
+Every campaign has its own directory under `$NDC_WORKSPACE/results/`. Existing
+result files are never overwritten. `lite` cannot replace a previous full campaign.
+Sources execute from this checkout; workspaces contain data/configuration, not stale
+copies of the harness. Keep a pinned checkout or a complete source bundle with results.
 
-Total speedup, 24 queries, medians of 3 cold-cache runs:
+## Validity before comparison
 
-| Total speedup | sf 0.5 | sf 1 | sf 10 |
-|---|---:|---:|---:|
-| Parquet | 1.20x | 1.18x | 1.27x |
-| Iceberg | 1.27x | 1.16x | 1.21x |
-| Delta | 1.14x | 1.05x | 1.13x |
+Every timed repetition is checked, including complete rows, duplicate multiplicity,
+nulls, and declared ordering. The tiny TPC-H suite checks pinned answers; DuckDB
+independently checks those pins against flat reference SQL. Larger scales use
+explicit flat/nested reference comparisons. Synthetic full reads have a separate
+Python oracle; other synthetic queries use equivalent reference SQL. Writes reopen
+committed output and compare complete contents; maintenance checks expected state.
 
-Per family on Parquet (vanilla → Comet):
+Failed, missing, unvalidated, stale, or incompatible results cannot receive a
+speedup comparison. Raw failure records remain available. Reports show per-query
+medians, sample counts/ranges, and descriptive family totals, without an overall
+weighted score or an automatic significance verdict.
 
-| Family | sf 0.5 | sf 1 | sf 10 |
-|---|---:|---:|---:|
-| built-in (scan+agg) | 1.67x | 2.04x | 2.47x |
-| depth 1–8 | 1.24x | 1.13x | 1.12x |
-| extended (manipulation) | 1.06x | 1.00x | 1.08x |
+## Documentation
 
-The stable findings: Comet's advantage concentrates in native
-scan+aggregate and compounds with volume; the nested-manipulation family
-is its weak spot at any volume; fallback-flattened cells hide
-native-execution effects. Raw result records and the analysis live in
-the coordinating repository.
+- [Workloads and schemas](docs/workloads.md)
+- [Measurement and validity rules](docs/methodology.md)
+- [Commands and CI](ndc/README.md)
+- [Answer provenance](ndc/answers/README.md)
+- [Apollo validation](docs/validation-apollo.md)
+- [Attribution and deviations](NOTICE)
+
+The original published README's speedup figures used the earlier harness. They
+have not been revalidated under the new complete gate; do not treat them as current
+qualification evidence. Public campaign claims should link a complete immutable
+artifact bundle, including source identity, raw samples, plans, and checksums.

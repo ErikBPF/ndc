@@ -1,0 +1,29 @@
+{
+  "w_update": {
+    "sql": "queries/w_update.sql",
+    "reference": "queries/w_update_ref.sql",
+    "family": "maintenance",
+    "operation": "update",
+    "layout": "nested",
+    "ordered": false,
+    "action": "update"
+  },
+  "w_delete": {
+    "sql": "queries/w_delete.sql",
+    "reference": "queries/w_delete_ref.sql",
+    "family": "maintenance",
+    "operation": "delete",
+    "layout": "nested",
+    "ordered": false,
+    "action": "delete"
+  },
+  "w_compact": {
+    "sql": "queries/w_compact.sql",
+    "reference": "queries/w_compact_ref.sql",
+    "family": "maintenance",
+    "operation": "compact",
+    "layout": "nested",
+    "ordered": false,
+    "action": "compact"
+  }
+}

@@ -1,0 +1,1 @@
+SELECT id FROM shape_flat GROUP BY id HAVING max(CASE WHEN amount>50 THEN 1 ELSE 0 END)=1 AND max(CASE WHEN amount<10 THEN 1 ELSE 0 END)=0

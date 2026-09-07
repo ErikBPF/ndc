@@ -1,0 +1,20 @@
+{
+  "ds_rank": {
+    "sql": "queries/ds_rank.sql",
+    "reference": "queries/ds_rank_ref.sql",
+    "family": "ds",
+    "operation": "dimension-join-rank",
+    "layout": "nested",
+    "ordered": false,
+    "inspiration": "TPC-DS Q67: category ranking"
+  },
+  "ds_channels": {
+    "sql": "queries/ds_channels.sql",
+    "reference": "queries/ds_channels_ref.sql",
+    "family": "ds",
+    "operation": "multi-collection-union-rollup",
+    "layout": "nested",
+    "ordered": false,
+    "inspiration": "TPC-DS Q80: sales and returns channels"
+  }
+}

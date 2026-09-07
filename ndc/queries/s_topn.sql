@@ -1,0 +1,1 @@
+SELECT id, aggregate(slice(reverse(sort_array(transform(filter(coalesce(items,array()),x->x IS NOT NULL AND x.amount IS NOT NULL),x->named_struct('amount',x.amount,'pos',x.pos)))),1,2),CAST(0 AS BIGINT),(a,x)->a+x.amount) total FROM shape

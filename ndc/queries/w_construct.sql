@@ -1,0 +1,1 @@
+SELECT id,array_sort(collect_list(named_struct('pos',pos,'amount',amount,'tag',tag,'attrs',attrs)),(l,r)->CASE WHEN l.pos<r.pos THEN -1 WHEN l.pos>r.pos THEN 1 ELSE 0 END) items FROM shape_flat GROUP BY id

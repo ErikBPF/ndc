@@ -7,3 +7,7 @@ results/
 tpch.duckdb
 *.stdout
 __pycache__/
+
+workspaces/
+*.secrets.json
+.env*
