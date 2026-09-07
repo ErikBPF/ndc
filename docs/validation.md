@@ -28,7 +28,7 @@ individual jobs before citing a result.
 - [Spark validation tests](../tests/spark_validation.py): nested bags, ordering,
   duplicates, stable answer identities, write round trips and driver result limits.
 
-Follow the [quickstart](../README.md#spark-quickstart-linux-x86-64) for setup and data
+Follow the [quickstart](../ndc/README.md#quickstart-linux-x86-64) for setup and data
 preparation. See [commands and configuration](../ndc/README.md) for engine/format
 selection and [measurement rules](methodology.md) for timing and resource limits.
 Scheduled/manual CI selects vanilla Spark and Comet across all three formats; routine PR CI
