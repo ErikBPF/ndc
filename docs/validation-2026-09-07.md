@@ -1,8 +1,8 @@
-# Apollo validation — 2026-09-07
+# Benchmark validation — 2026-09-07
 
 **Qualification passed. These are correctness checks, not new performance claims.**
 NDC's TPC-H-derived queries and TPC-DS-inspired/synthetic workloads were exercised
-on Apollo with Spark 4.1.3, Comet 1.0.0, Iceberg 1.11.0 and Delta 4.3.1.
+with Spark 4.1.3, Comet 1.0.0, Iceberg 1.11.0 and Delta 4.3.1.
 
 ## Results
 
@@ -31,7 +31,8 @@ final matrices then passed. The failed development campaign remains preserved.
 
 ## Environment and limits
 
-- Host: Apollo, 28 logical CPUs, approximately 220 GiB RAM.
+- Allocated test scope: CPU quota 400% (up to four CPUs of aggregate compute),
+  with a 16 GiB memory cap. This is the enforced allocation, not total machine capacity.
 - Spark: `local[4]`, 8 GiB driver heap; Comet has a configured 2 GiB off-heap pool.
 - All Spark acceptance phases: transient user scope with CPU quota 400% and
   `MemoryMax=16G`. The scope does not restrict affinity to four particular CPUs.
@@ -44,13 +45,13 @@ final matrices then passed. The failed development campaign remains preserved.
   one validated warm-up, `CACHE=warm`. Per-query resource attribution is unavailable
   for concurrent streams by design.
 
-Fresh Spark/JAR artifacts were installed under
-`apollo:~/poc/ndc-review-20260907/verified-spark`. Tests used separate workspaces;
-existing `~/poc/tpch-*` campaigns were not modified.
+Fresh Spark/JAR artifacts were installed in `verified-spark/` under the validation
+root. Tests used separate workspaces.
 
 ## Retained evidence
 
-Base: `apollo:~/poc/ndc-review-20260907/`.
+Paths below are relative to the retained validation root; campaign IDs identify
+the evidence independently of machine names.
 
 | Phase | Workspace-relative campaign |
 |---|---|
@@ -84,7 +85,7 @@ and [security](https://github.com/ErikBPF/ndc/actions/runs/34086563026).
 The hosted PR job passed 25 harness tests, pinned runtime installation, tiny data
 qualification, the vanilla/Parquet workload suite, and wrong-answer rejection.
 Its diagnostic artifact has 14-day retention. The six-cell validation remains the
-Apollo evidence above; scheduled/manual CI selects all engines and formats.
+test evidence above; scheduled/manual CI selects all engines and formats.
 No release or public performance result was published. A durable public artifact
 URL must be added when publishing a future benchmark claim.
 
@@ -95,8 +96,8 @@ coverage and stale bundle-inventory gaps; see [the review](implementation-review
 The initial acceptance above remains evidence for the preserved `final/` snapshot.
 The revised source is retained separately in `rv/`.
 
-- Local and Apollo harness: **25 tests passed**, including four regressions first
-  observed failing. Apollo ShellCheck and Bash syntax checks passed.
+- Harness: **25 tests passed** locally and on the test runner, including four
+  regressions first observed failing. ShellCheck and Bash syntax checks passed.
 - Revised complete matrix: **272 passed, 4 explicitly unsupported**, all 46 cases
   across both engines and three formats, one repetition, no warm-up. Same prepared
   tiny dataset, resource limits and pinned artifacts as initial acceptance.
@@ -111,4 +112,4 @@ reporter. They were not rewritten to satisfy the revised validity gate.
 
 The revised campaign bundle and SHA-256 sidecar are retained beside the campaign
 and copied to ignored `results/validation/` locally. Archive and every member
-checksum passed; the measured source inventory matches the current working tree.
+checksum passed; the measured source inventory matched the reviewed source snapshot at verification.

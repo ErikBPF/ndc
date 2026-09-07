@@ -7,11 +7,10 @@ import random
 ITEM = 'struct<pos:int,amount:bigint,tag:string,attrs:map<string,string>>'
 
 
-def records(parents=128, fanout=64, width=8, seed=7):
+def iter_records(parents=128, fanout=64, width=8, seed=7):
     if parents <= 0 or fanout <= 0 or width < 0:
         raise ValueError('parents/fanout must be positive; width nonnegative')
     rng = random.Random(seed)
-    rows = []
     for key in range(parents):
         count = [0, 1, min(4, fanout), min(16, fanout), fanout][key % 5]
         items = [dict(pos=j, amount=None if j % 13 == 12 else rng.randrange(100),
@@ -22,14 +21,17 @@ def records(parents=128, fanout=64, width=8, seed=7):
         if key % 11 == 0:
             items = None
         values = items or []
-        rows.append(dict(id=key, bucket=f'b{key % 4}', items=items,
+        yield dict(id=key, bucket=f'b{key % 4}', items=items,
                          returns=[dict(i, amount=(i['amount'] or 0)//2)
                                   for i in values if i and i['pos'] % 3 == 0],
                          groups=[{'items': values[j:j+2]} for j in range(0, len(values), 2)],
                          amounts=[i['amount'] if i else None for i in values],
                          tags=[i['tag'] if i else None for i in values],
-                         padding={f'p{j}': 'x'*64 for j in range(width)}))
-    return rows
+                         padding={f'p{j}': 'x'*64 for j in range(width)})
+
+
+def records(parents=128, fanout=64, width=8, seed=7):
+    return list(iter_records(parents,fanout,width,seed))
 
 
 def build(spark, directory, parents=128, fanout=64, width=8, seed=7):
@@ -52,9 +54,13 @@ def build(spark, directory, parents=128, fanout=64, width=8, seed=7):
     return rows
 
 
+def iter_full_answer(config):
+    return ((r['id'], r['items'], r['returns'], r['groups'], r['amounts'], r['tags'],
+             r['padding'] or {'p0':None}) for r in iter_records(**config))
+
+
 def full_answer(config):
-    return [(r['id'], r['items'], r['returns'], r['groups'], r['amounts'], r['tags'],
-             r['padding'] or {'p0':None}) for r in records(**config)]
+    return list(iter_full_answer(config))
 
 
 if __name__ == '__main__':

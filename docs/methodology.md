@@ -7,20 +7,25 @@ primary or optional performance metric is calculated.
 
 ## Timing
 
-Read latency starts immediately before `spark.sql(...).collect()` and ends after
-all results reach the driver. It includes planning and materialization. Write
+In default `VALIDATION=collect` mode, read latency starts immediately before
+`spark.sql(...).collect()` and ends after all results reach the driver. It includes planning and materialization. Write
 latency ends when the write/maintenance action returns after commit; reopening and
 validation are outside its timer. Source scans are included in fresh writes.
 Input preparation, reference computation, JVM startup, and declared warm-ups are
 excluded. Every warm-up and every measured repetition must validate.
 
-Queries use recorded seeded permutations for every repetition and stream. Engine
+Queries consume a schedule frozen before Spark startup. `plan.json` retains full
+SQL, references, warm-ups and seeded permutations for every repetition and stream.
+Cells embed the same plan; reports check its identity and actual sample order.
+`QUERY_SEED` controls query order independently of synthetic `DATA_SEED`; `SEED`
+is the legacy fallback for both. Fixed SQL literals are not randomized. Engine
 order alternates across format cells. Separate-process engine cells still have
 order effects; this is not per-repetition interleaving across engines. Use repeated
 campaigns with reversed `ENGINES` order for performance claims. `STREAMS>1` runs
 independent seeded read streams through one Spark application; this measures a
 shared-session workload, not independent client/server connections. Stream elapsed
-is first submission to last completion, including dispatch gaps. Per-query resource
+is first submission to last completion, including dispatch, validation and plan-capture
+gaps between queries. Per-query resource
 attribution is unavailable for overlapping streams.
 
 Cache modes:
@@ -45,9 +50,8 @@ is a differential check; do not call it independent qualification. Run the tiny
 qualification on each candidate engine before a larger performance campaign.
 Synthetic full reads compare against independently generated Python records;
 synthetic compute uses relational reference SQL. Write round trips validate source
-results and committed output. Full-read and write-oracle outputs are collected in
-driver memory; large output datasets need distributed canonical bag validation,
-which is not implemented. Keep synthetic output sizes within the driver budget. Maintenance uses deterministic expected state.
+results and committed output. Collect mode retains full-read and write-oracle outputs in driver memory. Use
+`VALIDATION=distributed` for outputs beyond that budget. Maintenance uses deterministic expected state.
 
 No check defaults to success when its reference is missing. Compare complete typed
 rows, nulls, duplicate multiplicity, and declared ordering. Decimal precision is
@@ -55,6 +59,33 @@ preserved. Runtime exceptions, wrong answers, incomplete repetitions, incompatib
 campaigns, and missing engine counterparts cannot produce a misleading speedup.
 Unsupported capabilities remain visible. Historical schema-v1 records and earlier schema-v2 records without an embedded
 manifest are rejected by the current reporter; retain their original source and reports.
+
+### Distributed validation
+
+`VALIDATION=distributed` consumes every output field into a disk-persisted Python
+RDD on executors and returns only a row count to the driver. Read timing includes
+this materialization, Python row serialization and executor disk writes. It is a
+different measurement from driver collection; reports reject mixed validation
+modes. Write timing still ends at commit, with reopening and validation outside.
+
+Complete canonical row keys are compared by distributed signed multiplicity counts.
+The equality check is exact, including duplicate counts, nested nulls and numeric
+normalization; it does not use hashes to decide validity. Ordered contracts include
+the observed row position. Fixed hash partitions and sorted keys produce compact
+SHA-256 answer identities independent of input partitioning. Sorting, comparison
+and identity construction are outside each query timer. Reference results are
+materialized outside read timing; cached output RDDs are released after use.
+
+The independent synthetic full-read oracle streams from one executor, preserving
+the generator's sequential random-number sequence without a driver-sized result
+list. This bounds its memory by one parent but limits oracle generation to one
+task. Synthetic dataset construction itself still uses a driver-side parent list.
+Individual nested rows must fit worker memory, and disk capacity and shuffle
+cost remain practical limits. Distributed validation is currently supported under
+the existing local Spark deployment contract.
+
+The implementation uses Spark's [RDD persistence](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.RDD.persist.html)
+and [partition-local sorting](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.RDD.repartitionAndSortWithinPartitions.html).
 
 ## Disclosure and comparisons
 

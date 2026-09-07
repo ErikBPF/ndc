@@ -33,11 +33,11 @@ miss short-lived work; selected runtime settings are recorded rather than every
 Spark setting. The Spark installation marker trusts a previously installed local
 cache; it does not rehash the extracted distribution on every use. Qualification
 runs do not establish performance significance. GitHub-hosted correctness and security subsequently passed for baseline commit
-`6dfdd32`; run links and coverage are in the Apollo validation log.
+`6dfdd32`; run links and coverage are in the benchmark validation log.
 
 ## Validation
 
 Four new regression cases were observed failing before fixes. All 25 standard-library
-tests pass locally and on Apollo; Apollo also passed ShellCheck and Bash syntax.
-The complete six-cell Apollo matrix and bundle verification are recorded in
-[the Apollo validation log](validation-apollo.md).
+tests pass locally and on the test runner; ShellCheck and Bash syntax also passed.
+The complete six-cell matrix and bundle verification are recorded in
+[the benchmark validation log](validation-2026-09-07.md).

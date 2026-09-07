@@ -59,11 +59,15 @@ spark_run() {
   mkdir -p "$campaign"
   local out=$campaign/spark_${eng}_${fmt}.json mon=$campaign/monitor_${eng}_${fmt}.csv
   [[ ! -e $out ]] || { echo "Refusing existing result $out" >&2; return 2; }
-  engine_flags "$eng" "$fmt"
-  local args=(--fmt "$fmt" --data "$PWD/data" --out "$out" --queries "$q" --runs "$runs"
+  engine_flags "$eng" "$fmt" || return $?
+  if [[ ! -e $campaign/plan.json ]]; then
+    freeze_plan "$campaign/plan.json" "$q" "$runs" "${NDC_PHASE:-matrix}" || return $?
+  fi
+  local args=(--fmt "$fmt" --data "$PWD/data" --out "$out" --runs "$runs"
     --sf "$(cat scale.txt)" --campaign-id "$(basename "$campaign")" --streams "${STREAMS:-1}"
-    --warmups "${WARMUPS:-1}" --seed "${SEED:-7}" --cache "${CACHE:-uncontrolled}"
-    --layout-mode "${LAYOUT_MODE:-matched}")
+    --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-${SEED:-7}}"
+    --plan "$campaign/plan.json" --phase "${NDC_PHASE:-matrix}" --cache "${CACHE:-uncontrolled}"
+    --layout-mode "${LAYOUT_MODE:-matched}" --validation "${VALIDATION:-collect}")
   [[ $eng != comet ]] || args+=(--comet)
   [[ $drop != yes ]] || args+=(--drop-caches)
   spark-submit "${JVM_FLAGS[@]}" "$CODE/spark_poc.py" "${args[@]}" > "$campaign/spark_${eng}_${fmt}.stdout" 2>&1 &
@@ -79,13 +83,23 @@ spark_run() {
   return "$rc"
 }
 
+freeze_plan() {
+  local out=$1 queries=$2 runs=$3 phase=$4
+  local selection=(--suite "${SUITE:-all}")
+  [[ -z $queries ]] || selection=(--queries "$queries")
+  python3 "$CODE/schedule.py" "${selection[@]}" --out "$out" --phase "$phase" \
+    --runs "$runs" --streams "${STREAMS:-1}" --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-${SEED:-7}}"
+}
+
 matrix() { # Continue for diagnostics, but any failed cell fails the campaign.
-  local runs=${1:-3} drop=${2:-no} q=${3:-$CODE/queries/manifest-all.json} failed=0
+  local runs=${1:-3} drop=${2:-no} q=${3:-} failed=0
+  export NDC_PHASE=${4:-${NDC_PHASE:-matrix}}
   local formats=${FORMATS:-parquet iceberg delta} engines=${ENGINES:-vanilla comet}
   local base=${NDC_WORKSPACE:-$PWD}
   export NDC_CAMPAIGN_DIR=${NDC_CAMPAIGN_DIR:-$base/results/$(date -u +%Y%m%dT%H%M%S)-$(python3 -c 'import uuid; print(uuid.uuid4().hex[:8])')}
   [[ ! -e $NDC_CAMPAIGN_DIR ]] || { echo "Campaign already exists: $NDC_CAMPAIGN_DIR" >&2; return 2; }
   mkdir -p "$NDC_CAMPAIGN_DIR"
+  freeze_plan "$NDC_CAMPAIGN_DIR/plan.json" "$q" "$runs" "$NDC_PHASE" || return $?
   local cells=() fmt eng
   # Engines alternate across format cells; repetitions use the same seeded query permutations.
   for fmt in $formats; do
@@ -104,6 +118,14 @@ from pathlib import Path
 Path(sys.argv[1]).write_text(json.dumps({'status':'failed' if int(sys.argv[2]) else 'ok','cells':sys.argv[3:]},indent=2))
 PY
   if [[ $failed == 0 ]]; then python3 "$CODE/report.py" "$NDC_CAMPAIGN_DIR" "$NDC_CAMPAIGN_DIR/report.md" || failed=1; fi
+  if [[ $failed != 0 ]]; then
+    python3 - "$NDC_CAMPAIGN_DIR/campaign.json" <<'PYCODE'
+import json,sys
+from pathlib import Path
+path=Path(sys.argv[1]);record=json.loads(path.read_text());record['status']='failed'
+path.write_text(json.dumps(record,indent=2))
+PYCODE
+  fi
   echo "CAMPAIGN -> $NDC_CAMPAIGN_DIR"
   return "$failed"
 }
@@ -127,7 +149,9 @@ case "${1:-}" in
   depths|depthsmoke)
     duckdb tpch.duckdb < "$CODE/depths.sql"
     grep -q 'PARITY_OK' results/parity_depths.txt || { cat results/parity_depths.txt; exit 1; } ;;
-  qualify) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
+  qualify|qualify-references) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
+  qualify-engine) python3 "$CODE/qualification.py" "${2:?engine required}" "${3:-parquet}" ;;
+  invariants) duckdb tpch.duckdb < "$CODE/invariants.sql" ;;
   parity)
     duckdb < "$CODE/parity.sql"
     grep -q 'PARITY_OK' results/parity.txt || { cat results/parity.txt; exit 1; } ;;
@@ -140,7 +164,7 @@ case "${1:-}" in
     python3 "$CODE/check_size.py" gen.sql results/size-check.csv "$CODE/sizes.csv" ;;
   shapes)
     engine_flags vanilla parquet
-    spark-submit "${JVM_FLAGS[@]}" "$CODE/shapes.py" --data "$PWD/data" --parents "${PARENTS:-128}" --fanout "${FANOUT:-64}" --width "${WIDTH:-8}" --seed "${SEED:-7}" ;;
+    spark-submit "${JVM_FLAGS[@]}" "$CODE/shapes.py" --data "$PWD/data" --parents "${PARENTS:-128}" --fanout "${FANOUT:-64}" --width "${WIDTH:-8}" --seed "${DATA_SEED:-${SEED:-7}}" ;;
   build-fmt)
     engine_flags vanilla "${2:?format required}"
     spark-submit "${JVM_FLAGS[@]}" "$CODE/write_fmt.py" --fmt "$2" --data "$PWD/data" ;;
@@ -149,8 +173,8 @@ case "${1:-}" in
     "$CODE/run.sh" size-check
     "$CODE/run.sh" conv
     "$CODE/run.sh" nested
-    duckdb tpch.duckdb < "$CODE/invariants.sql"
-    if [[ $(cat scale.txt) == 0.0083 ]]; then "$CODE/run.sh" qualify; fi
+    "$CODE/run.sh" invariants
+    if [[ $(cat scale.txt) == 0.0083 ]]; then "$CODE/run.sh" qualify-references; fi
     "$CODE/run.sh" parity
     "$CODE/run.sh" depths
     "$CODE/run.sh" shapes
@@ -165,11 +189,14 @@ print('DATASET',dataset(sys.argv[2])['dataset_id'])
 PY
     ;;
   spark) spark_run "${2:?engine required}" "${3:-parquet}" "${4:-$CODE/queries/manifest-full.json}" "${5:-3}" "${6:-no}" ;;
-  lite) FORMATS=parquet matrix 1 no "${QUERIES:-$CODE/queries/manifest-full.json}" ;;
-  full|comet-default|matrix) matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-$CODE/queries/manifest-all.json}" ;;
-  throughput) STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-$CODE/queries/manifest-ds.json}" ;;
+  lite) FORMATS=parquet SUITE=${SUITE:-tpch} matrix 1 no "${QUERIES:-}" ;;
+  full|comet-default|matrix) matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" ;;
+  latency) SUITE=${SUITE:-read} STREAMS=1 matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" latency ;;
+  maintenance) SUITE=${SUITE:-maintenance} STREAMS=1 matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" maintenance ;;
+  plan) freeze_plan "${2:?output JSON path required}" "${QUERIES:-}" "${RUNS:-3}" "${NDC_PHASE:-matrix}" ;;
+  throughput|shared-throughput) SUITE=${SUITE:-ds} STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-}" shared-throughput ;;
   bundle) python3 "$CODE/bundle.py" "${2:?campaign required}" ;;
   report) python3 "$CODE/report.py" "${2:?campaign directory required}" "${2}/report.md" ;;
-  test) cd "$ROOT"; python3 -m unittest discover -s tests -v; shellcheck ndc/run.sh; bash -n ndc/run.sh ;;
-  *) echo 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|parity|spark <engine> <fmt> [manifest] [runs]|lite|full|throughput|report <campaign>|test'; exit 2 ;;
+  test|check) cd "$ROOT"; python3 -m unittest discover -s tests -v; shellcheck ndc/run.sh; bash -n ndc/run.sh ;;
+  *) echo 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; exit 2 ;;
 esac

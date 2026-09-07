@@ -61,7 +61,7 @@ class ValidityTests(unittest.TestCase):
 
     def test_matrix_refuses_existing_campaign(self):
         script=(ROOT/'ndc/run.sh').read_text()
-        start=script.index('matrix() {');end=script.index('\ncase ',start)
+        start=script.index('freeze_plan() {');end=script.index('\ncase ',start)
         with tempfile.TemporaryDirectory() as tmp:
             campaign=Path(tmp)/'campaign';campaign.mkdir()
             marker=campaign/'campaign.json';marker.write_text('original')
@@ -74,15 +74,26 @@ class ValidityTests(unittest.TestCase):
 
     def test_matrix_failure_propagates(self):
         script = (ROOT/'ndc/run.sh').read_text()
-        start = script.index('matrix() {')
+        start = script.index('freeze_plan() {')
         end = script.index('\ncase ', start)
         with tempfile.TemporaryDirectory() as tmp:
             p = subprocess.run(['bash', '-c', 'set -euo pipefail\n'
                             'spark_run() { return 17; }\ndropcaches() { :; }\n'
-                            + script[start:end] + '\nmatrix 1 no ignored\n'],
+                            + script[start:end] + '\nmatrix 1 no "$CODE/queries/manifest-full.json"\n'],
                                capture_output=True, text=True, cwd=tmp,
-                               env=dict(os.environ,NDC_WORKSPACE=tmp,NDC_CAMPAIGN_DIR=tmp+'/campaign'))
+                               env=dict(os.environ,NDC_WORKSPACE=tmp,NDC_CAMPAIGN_DIR=tmp+'/campaign',CODE=str(ROOT/'ndc')))
         self.assertNotEqual(p.returncode, 0, 'all failed cells accepted')
+
+    def test_report_failure_marks_campaign_failed(self):
+        script=(ROOT/'ndc/run.sh').read_text()
+        start=script.index('freeze_plan() {');end=script.index('\ncase ',start)
+        with tempfile.TemporaryDirectory() as tmp:
+            p=subprocess.run(['bash','-c','set -euo pipefail\nspark_run() { return 0; }\n'
+                              +script[start:end]+'\nmatrix 1 no "$CODE/queries/manifest-full.json"\n'],
+                             env=dict(os.environ,NDC_WORKSPACE=tmp,NDC_CAMPAIGN_DIR=tmp+'/campaign',CODE=str(ROOT/'ndc')),
+                             capture_output=True,text=True)
+            self.assertNotEqual(p.returncode,0)
+            self.assertEqual(json.loads((Path(tmp)/'campaign/campaign.json').read_text())['status'],'failed')
 
 
 class ReportTests(unittest.TestCase):
@@ -133,6 +144,21 @@ class ReportTests(unittest.TestCase):
     def test_manifest_identity_is_verified(self):
         p, _ = self.report(mutate=lambda c, e: c.update(manifest_id='wrong'))
         self.assertNotEqual(p.returncode, 0)
+
+    def test_new_phase_requires_frozen_plan(self):
+        p,_=self.report(mutate=lambda c,e:c['comparison'].update(phase='matrix'))
+        self.assertNotEqual(p.returncode,0)
+
+    def test_execution_order_must_match_plan(self):
+        def mutate(c,e):
+            c['manifest']={'q6_flat':module('schedule').load_suite(ROOT/'ndc','scan')['q6_flat']}
+            c['manifest_id']=module('provenance').identity(c['manifest'])
+            c['comparison'].update(runs=2,warmups=0,seed=7,phase='matrix',stream_model='serial')
+            c['plan']=module('schedule').build_plan(c['manifest'],runs=2,streams=1,warmups=0,seed=7)
+            c['plan_id']=module('provenance').identity(c['plan'])
+            c['results'].insert(0,dict(c['results'][0],run=1))
+        p,_=self.report(mutate=mutate)
+        self.assertNotEqual(p.returncode,0)
 
     def test_duplicate_sample_is_rejected(self):
         p,_=self.report(mutate=lambda c,e: c['results'].append(dict(c['results'][0])))

@@ -19,6 +19,10 @@ with tempfile.TemporaryDirectory(prefix='invalid_',dir=root/'ndc/queries') as tm
     p=subprocess.run([str(root/'ndc/run.sh'),'spark','vanilla','parquet',str(file),'1'],env=env)
     result=json.loads((campaign/'spark_vanilla_parquet.json').read_text())
     assert p.returncode!=0, 'wrong answer exited successfully'
+    plan=json.loads((campaign/'plan.json').read_text())
+    assert result['plan']==plan
+    assert plan['samples']==[{'q':'e18_nested','run':0,'stream':0}]
+    assert result['comparison']['validation']==os.environ.get('VALIDATION','collect')
     assert result['parity_ok'] is False
     assert len(result['results'])==1 and result['results'][0]['status']=='invalid',result
     print('INTEGRATION_OK: actual Spark wrong-answer injection failed validity and process exit')
