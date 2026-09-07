@@ -10,6 +10,11 @@ TPC-DS Q67 motivates category ranking; Q80 motivates combining sales/returns
 channels. These are conceptual adaptations with new SQL and synthetic inputs;
 NDC does not generate the DS schema or execute its 99-query suite.
 
+Workload IDs, logical data, expected results and ordering/null semantics define
+the benchmark across engines. SQL files and storage operations in this repository
+are the current Spark implementation; another engine may translate them while
+preserving those contracts. See [engine integration](engines.md).
+
 ## Data contracts
 
 - TPC-H: DuckDB's `tpch` extension supplies eight base tables. `sizes.csv` records
@@ -25,7 +30,8 @@ NDC does not generate the DS schema or execute its 99-query suite.
   and unused padding fields. `shape_flat`, `shape_returns`, `shape_dim` are controls.
   `shape.json` records generation parameters; `shapes.records` is deterministic.
 
-`PARENTS`, `FANOUT`, `WIDTH`, and `SEED` control the synthetic fixture at build time.
+`PARENTS`, `FANOUT`, `WIDTH`, and `DATA_SEED` control the synthetic fixture at build
+time. `DATA_SEED` falls back to `SEED`, then 7; `QUERY_SEED` only controls query order.
 Null arrays, empty arrays, null elements, null amount/tag leaves, duplicate values,
 and ties are deliberate. Parent cardinalities cycle through 0, 1, 4, 16, and the
 maximum fan-out (bounded by that maximum). Sweep fan-out and width in fresh
@@ -47,9 +53,10 @@ reviewable files. Changing semantics requires changing/reviewing reference answe
   of qualifying orders and their total; it cannot reduce to a maximum predicate.
 - Q6 validates revenue **and count**, including all depth variants. Empty-match
   revenue is NULL and count is zero. E19 also preserves NULL SUM semantics.
-- `s_full` materializes the complete selected nested payload to the driver. It
-  measures a materialized read including serialization/collection, not pure disk
-  bandwidth. Keep its shape scale within driver memory.
+- `s_full` materializes the complete selected nested payload. `VALIDATION=collect`
+  brings it to the driver; `VALIDATION=distributed` persists it on executor disk.
+  Both include serialization and materialization, so neither measures pure disk
+  bandwidth. See [validation modes and memory limits](methodology.md#distributed-validation).
 - `s_regroup` reconstructs selected child structs; `s_topn` depends on two values.
 - `ds_rank` joins a dimension, aggregates by category, then ranks.
 - `ds_channels` unions positive sales and negative returns, then rolls up channel
@@ -69,11 +76,12 @@ parent 1's nested `payload.amount`; delete removes parent 1. Compaction preserve
 all logical rows. The tiny append is a transaction-latency probe, not a bulk ingest
 throughput claim; materialization supplies the bulk-write case.
 
-Iceberg uses table operations and `rewrite_data_files`; Delta uses table writes,
+In the bundled Spark runner, Iceberg uses table operations and `rewrite_data_files`; Delta uses table writes,
 UPDATE/DELETE and OPTIMIZE. Parquet supports fresh writes, append, and compaction
 into a new materialized path, but not transactional UPDATE/DELETE. Compaction of
 already compact data may do no work; disclose before/after storage and file counts.
 NDC does not silently replace unsupported transactions with a full-table rewrite.
 
 Single-stream query latency, concurrent read streams, and maintenance are distinct
-experiments. Cold-cache concurrent streams and concurrent maintenance are rejected.
+experiments. The current runner rejects cold-cache concurrent streams and concurrent
+maintenance. Other runners must declare their supported execution combinations.
