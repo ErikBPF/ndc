@@ -4,6 +4,16 @@ NDC is intended for multiple query engines. Spark is the initial implementation
 and the current development use case. Comet is an execution mode within Spark;
 neither Spark APIs nor its session model define the benchmark’s scope.
 
+## Engine scripts
+
+| Implementation | Setup and commands | Entry point |
+|---|---|---|
+| Spark, with optional Comet | [Runner guide](../ndc/README.md) | [`ndc/run.sh`](../ndc/run.sh) |
+
+Each implementation documents its own dependencies, supported formats, execution
+settings and qualification commands. The table lists scripts available in this
+repository; it does not restrict which engines can implement NDC.
+
 ## What another engine must preserve
 
 - **Workload identity and semantics:** retain workload IDs, logical input fields,

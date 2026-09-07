@@ -36,7 +36,23 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+      - name: Restore locked runtime downloads
+        id: runtime-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/ndc-spark41/*.tgz
+            ~/ndc-spark41/jars/*.jar
+          key: ndc-runtime-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ndc/artifacts.json') }}
       - run: ./ndc/run.sh setup
+      - name: Save verified runtime downloads
+        if: steps.runtime-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/ndc-spark41/*.tgz
+            ~/ndc-spark41/jars/*.jar
+          key: ${{ steps.runtime-cache.outputs.cache-primary-key }}
       - run: ./ndc/run.sh bootstrap 0.0083 ci
       - name: Generate, qualify and measure tiny inputs
         run: |
