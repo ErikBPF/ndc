@@ -1,0 +1,464 @@
+{
+  "version": 2,
+  "tables": {
+    "region": {
+      "fields": [
+        {
+          "name": "r_regionkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "r_name",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "r_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "r_regionkey"
+      ]
+    },
+    "nation": {
+      "fields": [
+        {
+          "name": "n_nationkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "n_name",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "n_regionkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "n_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "n_nationkey"
+      ]
+    },
+    "supplier": {
+      "fields": [
+        {
+          "name": "s_suppkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "s_name",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "s_address",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "s_nationkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "s_phone",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "s_acctbal",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "s_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "s_suppkey"
+      ]
+    },
+    "customer": {
+      "fields": [
+        {
+          "name": "c_custkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "c_name",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "c_address",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "c_nationkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "c_phone",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "c_acctbal",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "c_mktsegment",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "c_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "c_custkey"
+      ]
+    },
+    "part": {
+      "fields": [
+        {
+          "name": "p_partkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "p_name",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "p_mfgr",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "p_brand",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "p_type",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "p_size",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "name": "p_container",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "p_retailprice",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "p_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "p_partkey"
+      ]
+    },
+    "partsupp": {
+      "fields": [
+        {
+          "name": "ps_partkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "ps_suppkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "ps_availqty",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "name": "ps_supplycost",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "ps_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "ps_partkey",
+        "ps_suppkey"
+      ]
+    },
+    "orders": {
+      "fields": [
+        {
+          "name": "o_orderkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "o_custkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "o_orderstatus",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "o_totalprice",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "o_orderdate",
+          "type": "DATE",
+          "nullable": false
+        },
+        {
+          "name": "o_orderpriority",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "o_clerk",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "o_shippriority",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "name": "o_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "o_orderkey"
+      ]
+    },
+    "lineitem": {
+      "fields": [
+        {
+          "name": "l_orderkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "l_partkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "l_suppkey",
+          "type": "BIGINT",
+          "nullable": false
+        },
+        {
+          "name": "l_linenumber",
+          "type": "INTEGER",
+          "nullable": false
+        },
+        {
+          "name": "l_quantity",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "l_extendedprice",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "l_discount",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "l_tax",
+          "type": "DECIMAL(15,2)",
+          "nullable": false
+        },
+        {
+          "name": "l_returnflag",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "l_linestatus",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "l_shipdate",
+          "type": "DATE",
+          "nullable": false
+        },
+        {
+          "name": "l_commitdate",
+          "type": "DATE",
+          "nullable": false
+        },
+        {
+          "name": "l_receiptdate",
+          "type": "DATE",
+          "nullable": false
+        },
+        {
+          "name": "l_shipinstruct",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "l_shipmode",
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        {
+          "name": "l_comment",
+          "type": "VARCHAR",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "l_orderkey",
+        "l_linenumber"
+      ]
+    }
+  },
+  "nested": {
+    "table": "orders_nested_v2",
+    "parent": "orders",
+    "child": "lineitem",
+    "parent_key": "o_orderkey",
+    "child_key": "l_orderkey",
+    "field": "lineitems",
+    "order_by": "l_linenumber",
+    "nullable": false,
+    "element_nullable": false,
+    "empty_parent": "empty array"
+  },
+  "foreign_keys": [
+    [
+      "nation",
+      [
+        "n_regionkey"
+      ],
+      "region",
+      [
+        "r_regionkey"
+      ]
+    ],
+    [
+      "customer",
+      [
+        "c_nationkey"
+      ],
+      "nation",
+      [
+        "n_nationkey"
+      ]
+    ],
+    [
+      "supplier",
+      [
+        "s_nationkey"
+      ],
+      "nation",
+      [
+        "n_nationkey"
+      ]
+    ],
+    [
+      "orders",
+      [
+        "o_custkey"
+      ],
+      "customer",
+      [
+        "c_custkey"
+      ]
+    ],
+    [
+      "partsupp",
+      [
+        "ps_partkey"
+      ],
+      "part",
+      [
+        "p_partkey"
+      ]
+    ],
+    [
+      "partsupp",
+      [
+        "ps_suppkey"
+      ],
+      "supplier",
+      [
+        "s_suppkey"
+      ]
+    ],
+    [
+      "lineitem",
+      [
+        "l_orderkey"
+      ],
+      "orders",
+      [
+        "o_orderkey"
+      ]
+    ],
+    [
+      "lineitem",
+      [
+        "l_partkey",
+        "l_suppkey"
+      ],
+      "partsupp",
+      [
+        "ps_partkey",
+        "ps_suppkey"
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,63 @@
+# Shared data model
+
+Nested Data Compute separates the dataset, workload semantics and engine execution.
+Generate one canonical dataset and let each engine load it through its own DDL and
+SQL dialect. An engine must not independently regenerate different input for a
+comparison. NDC remains TPC-H-derived and TPC-DS-inspired, without TPC compliance
+or a TPC performance score.
+
+## Canonical dataset: version 2
+
+The [schema contract](../datagen/schema.json) defines eight relational TPC-H tables
+and `orders_nested_v2`. The nested table contains every order field and an ordered
+list of line-item records. Each child retains every line-item field except
+`l_orderkey`, which is reconstructed from its parent’s `o_orderkey`.
+
+Keys use integers, financial and quantity fields use exact `DECIMAL(15,2)`, dates
+use `DATE`, and text retains its values. These are NDC's physical type choices for
+representing the source data, not a claim to reproduce every generator's DDL.
+
+- One nested row per order; each source child appears under its original parent.
+- Children are ordered by `l_linenumber`; parent and child keys are unique.
+- Parents without children receive an empty list, never a fabricated null child.
+- Baseline fields, lists and child records are non-null. Separate query fixtures
+  exercise null lists, empty lists, null elements and duplicate elements.
+- Exact bidirectional bag checks reconstruct all order and line-item fields.
+
+## Generate once, consume many times
+
+The [standalone importer and transformer](../datagen/README.md) accepts the eight
+unpartitioned `.tbl` files from a pinned TPC-H generator, or eight typed Parquet
+source tables. It uses DuckDB as a preparation tool, independently of the consuming
+engine. The official generator is obtained and run separately.
+
+Output contains nine Parquet files and `dataset.json`: schema identity, input
+checksums, declared source label, writer version, row counts and output checksums.
+Invalid keys, orphan children, lossy typed casts and malformed numeric text fail
+before a successful dataset is declared. Existing output directories are refused.
+`--verify` checks the schema and artifact identities before import; it does not
+replace semantic validation inside the consuming engine.
+
+Every engine receives the same canonical files. Internal storage may differ after
+loading; disclose those differences separately from input identity. Preparation
+and loading are separate from timed query execution.
+
+## DDL and workload adapters
+
+[DuckDB](../engines/duckdb/ddl.sql), [Spark](../engines/spark/ddl.sql) and
+[Snowflake](../engines/snowflake/ddl.sql) DDL render the same nested schema.
+The [portable workload contract](../datagen/workloads.json) defines inner line-item
+aggregation and parent-preserving outer counts. SQL templates translate those
+operations into each dialect; shared semantics contain no engine SQL text.
+
+DuckDB and Spark qualification checks load the same fixture, preserve complete
+values and validate the query answers. Snowflake templates require live
+qualification against the chosen table/loading mode before measurements.
+
+## Compatibility and next boundary
+
+Version 2 is a separate data path. The existing `orders_nested` projection,
+depth/shape fixtures and measurement suites retain their contracts. The portable
+SQL examples do not imply that every NDC workload or its result reporter has been
+ported. Extend engine qualification and semantic result identity before making
+cross-engine performance comparisons. See [adapter usage](../engines/README.md).

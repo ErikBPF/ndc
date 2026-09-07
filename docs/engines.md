@@ -20,6 +20,10 @@ Each implementation documents its own dependencies, supported formats, execution
 settings and qualification commands. The table lists scripts available in this
 repository; it does not restrict which engines can implement NDC.
 
+The [shared-data adapters](../engines/README.md) provide version 2 DDL and two
+portable query templates. Their [standalone data preparation](../datagen/README.md)
+requires no Spark/Comet runtime. They do not yet replace this measurement runner.
+
 ## What another engine must preserve
 
 - **Workload identity and semantics:** retain workload IDs, logical input fields,
