@@ -1,0 +1,384 @@
+{
+  "host": "apollo",
+  "date_utc": "2026-09-08",
+  "scale_factors": [
+    0.5,
+    10
+  ],
+  "settings": {
+    "duckdb_memory_limit": "8GiB",
+    "duckdb_threads": 4,
+    "key_span": 250000,
+    "spark_master": "local[4]",
+    "spark_driver_heap": "4g",
+    "spark_shuffle_partitions": 200,
+    "storage": "shared NFS; Spark scratch also NFS"
+  },
+  "measurement_notes": [
+    "Memory settings are engine limits, not process RSS caps.",
+    "RSS is sampled each second across the process tree; shared pages may be counted twice.",
+    "Runs are correctness/preparation checks, not isolated performance comparisons.",
+    "Legacy and fixture checks overlapped part of canonical SF10 preparation."
+  ],
+  "stages": [
+    {
+      "stage": "duckdb-fixture",
+      "returncode": 0,
+      "seconds": 17.66,
+      "command": [
+        "$PREVIOUS_RUN_ROOT/runtime/spark-4.1.3-bin-hadoop3/bin/spark-submit",
+        "--master",
+        "local[4]",
+        "--driver-memory",
+        "4g",
+        "--conf",
+        "spark.sql.shuffle.partitions=200",
+        "--conf",
+        "spark.ui.enabled=false",
+        "--conf",
+        "spark.local.dir=$RUN_ROOT/scratch",
+        "tests/portable_spark.py"
+      ],
+      "peak_sampled_process_tree_rss_gib": 1.275,
+      "log_sha256": "6b7ba5b8a76566bbc7f8cb42da3b6331e2753dbcfc8b3c023e2c270129856ead",
+      "resources_sha256": "c4f7d58a06364adf00ce96d8bb91d7667ba2fa5ac4ad0b83cedee4a07373b5d6"
+    },
+    {
+      "stage": "duckdb-sf05",
+      "returncode": 0,
+      "seconds": 31.012,
+      "command": [
+        "python3",
+        "datagen/generate.py",
+        "--backend",
+        "duckdb",
+        "--input",
+        "$PREVIOUS_RUN_ROOT/workspaces/tpch-sf05/data",
+        "--input-format",
+        "parquet",
+        "--out",
+        "$RUN_ROOT/duckdb-sf05",
+        "--source-label",
+        "Apollo sf05; identical retained source for both backends",
+        "--memory-limit",
+        "8GiB"
+      ],
+      "peak_sampled_process_tree_rss_gib": 2.262,
+      "log_sha256": "3d001dd4a6b2a82f692e62dd2fa096a75d7aaca23775b73cfb47467383ea69b3",
+      "resources_sha256": "f4fa69ab8036092ab11530d330d7d46e3f586273810acfac0b6b9fedc7398362"
+    },
+    {
+      "stage": "duckdb-sf05-verify",
+      "returncode": 0,
+      "seconds": 1.105,
+      "command": [
+        "python3",
+        "datagen/generate.py",
+        "--verify",
+        "$RUN_ROOT/duckdb-sf05"
+      ],
+      "peak_sampled_process_tree_rss_gib": 0.022,
+      "log_sha256": "3d001dd4a6b2a82f692e62dd2fa096a75d7aaca23775b73cfb47467383ea69b3",
+      "resources_sha256": "8bfc9b21692f546d2f39fdc8cee6a501edccc725a9206b9ed5202eb72774dc1b"
+    },
+    {
+      "stage": "spark-sf05",
+      "returncode": 0,
+      "seconds": 158.879,
+      "command": [
+        "$PREVIOUS_RUN_ROOT/runtime/spark-4.1.3-bin-hadoop3/bin/spark-submit",
+        "--master",
+        "local[4]",
+        "--driver-memory",
+        "4g",
+        "--conf",
+        "spark.sql.shuffle.partitions=200",
+        "--conf",
+        "spark.ui.enabled=false",
+        "--conf",
+        "spark.local.dir=$RUN_ROOT/scratch",
+        "datagen/generate.py",
+        "--backend",
+        "spark",
+        "--input",
+        "$PREVIOUS_RUN_ROOT/workspaces/tpch-sf05/data",
+        "--input-format",
+        "parquet",
+        "--out",
+        "$RUN_ROOT/spark-sf05",
+        "--source-label",
+        "Apollo sf05; identical retained source for both backends"
+      ],
+      "peak_sampled_process_tree_rss_gib": 3.491,
+      "log_sha256": "001bdc4871a98e12feef3e556135df6f77006d961da548260216676ff831c434",
+      "resources_sha256": "cee79702f94035f9e5cc8b872120e735c6f5b3b842d47c9112bb7052464a2725"
+    },
+    {
+      "stage": "spark-sf05-verify",
+      "returncode": 0,
+      "seconds": 1.135,
+      "command": [
+        "python3",
+        "datagen/generate.py",
+        "--verify",
+        "$RUN_ROOT/spark-sf05"
+      ],
+      "peak_sampled_process_tree_rss_gib": 0.022,
+      "log_sha256": "a2f9c5a7eed1f99d185f3a166922120fd26dcc68c11ec13142ebb117d6961482",
+      "resources_sha256": "c25662b94fd1fdfe9806e01342ac7fbc16d62f42389eed7cea18f4614f61a630"
+    },
+    {
+      "stage": "duckdb-sf10",
+      "returncode": 0,
+      "seconds": 1895.017,
+      "elapsed_basis": "first to last live resource sample; approximate to 1 second",
+      "command": [
+        "python3",
+        "datagen/generate.py",
+        "--backend",
+        "duckdb",
+        "--input",
+        "$PREVIOUS_RUN_ROOT/workspaces/tpch-sf10/data",
+        "--input-format",
+        "parquet",
+        "--out",
+        "$RUN_ROOT/duckdb-sf10",
+        "--memory-limit",
+        "8GiB"
+      ],
+      "note": "Orchestration paused before generation finished to prevent the next run, as requested.",
+      "peak_sampled_process_tree_rss_gib": 8.766,
+      "log_sha256": "21f7640b2c83aed2ebe183701358670611734825c7057c111bcdc40ae1ac5f1e",
+      "resources_sha256": "250cdf4d0525d25f1659212f5ea5c03633089cc7aff0f4147df8d656d2c1953a"
+    },
+    {
+      "stage": "legacy-sf05",
+      "returncode": 0,
+      "seconds": 14.549,
+      "command": [
+        "bash",
+        "-c",
+        "cd \"$1\" && python3 \"$2\"",
+        "ndc",
+        "$RUN_ROOT/legacy-sf05",
+        "$RUN_ROOT/review-source/ndc/nest.py"
+      ],
+      "peak_sampled_process_tree_rss_gib": 1.255,
+      "log_sha256": "813cc8b9cccd01c0be173fc22f343587dec7a32d97352f86a4772f2d261848f4",
+      "resources_sha256": "d2ffc97475c8dde2bee230324db79130fa2ee85fd2955bbf6d482f861d3ffbe4"
+    },
+    {
+      "stage": "legacy-sf05-parity",
+      "returncode": 0,
+      "seconds": 2.148,
+      "command": [
+        "$RUN_ROOT/review-source/ndc/run.sh",
+        "parity"
+      ],
+      "peak_sampled_process_tree_rss_gib": 1.126,
+      "log_sha256": "154abf021f07260ca411c099a0a4d0751d96aeaf0d247cf6c105901f1c00e8f7",
+      "resources_sha256": "35b28fa35718b58973ac3ee36c278d8ac9dd9f8343fed3708ec46ac36535fa14"
+    },
+    {
+      "stage": "legacy-sf10",
+      "returncode": 0,
+      "seconds": 508.363,
+      "command": [
+        "bash",
+        "-c",
+        "cd \"$1\" && python3 \"$2\"",
+        "ndc",
+        "$RUN_ROOT/legacy-sf10",
+        "$RUN_ROOT/review-source/ndc/nest.py"
+      ],
+      "peak_sampled_process_tree_rss_gib": 8.72,
+      "log_sha256": "aed89a4602b465879c817d44528b5a92646d20110496e45c94ae801ec548fe80",
+      "resources_sha256": "fb6f3163e502a28dbcd5aacbe78faa93f2624c37ce83997c5ee22c3e857c4fd9"
+    },
+    {
+      "stage": "legacy-sf10-parity",
+      "returncode": 0,
+      "seconds": 204.104,
+      "command": [
+        "$RUN_ROOT/review-source/ndc/run.sh",
+        "parity"
+      ],
+      "peak_sampled_process_tree_rss_gib": 8.302,
+      "log_sha256": "154abf021f07260ca411c099a0a4d0751d96aeaf0d247cf6c105901f1c00e8f7",
+      "resources_sha256": "4a3280161c25de737c77d8c48dfc2a9bbad6d0450dc976cc1af0fd0257d2ba5b"
+    }
+  ],
+  "datasets": {
+    "duckdb-sf05": {
+      "status": "ok",
+      "manifest_sha256": "134f3355068660569c49787ebf1f8c60f4ce7529e6b5fe9bef047b00d7a984c2",
+      "dataset_id": "50750a20b279be173e07187632d68e4f6750bfc695efe8d26451b684e7339431",
+      "schema_id": "1e68524ffc49ea3b77f47398b0195bccb011c31e43593e38a01645f5b7951c71",
+      "source_identity": "71849cc91b854ddd675b60700961f6d8fc71bccb1d995808f4ea35e39f569aec",
+      "writer": "v1.5.5 (Variegata) d8cdaa33fd",
+      "tables": {
+        "region": {
+          "rows": 5,
+          "files": 1
+        },
+        "nation": {
+          "rows": 25,
+          "files": 1
+        },
+        "supplier": {
+          "rows": 5000,
+          "files": 1
+        },
+        "customer": {
+          "rows": 75000,
+          "files": 1
+        },
+        "part": {
+          "rows": 100000,
+          "files": 1
+        },
+        "partsupp": {
+          "rows": 400000,
+          "files": 1
+        },
+        "orders": {
+          "rows": 750000,
+          "files": 1
+        },
+        "lineitem": {
+          "rows": 2999671,
+          "files": 1
+        },
+        "orders_nested_v2": {
+          "rows": 750000,
+          "files": 13
+        }
+      }
+    },
+    "spark-sf05": {
+      "status": "ok",
+      "manifest_sha256": "0371a275c70bbc3bb01e1d76f25ce2d2b7f62b085f4e9bf596340f4b2f1b2eb5",
+      "dataset_id": "421420aa99dc736ead3dd292dfaf7037f2fbfa7478eac413bbb4ac0eda4b99bd",
+      "schema_id": "1e68524ffc49ea3b77f47398b0195bccb011c31e43593e38a01645f5b7951c71",
+      "source_identity": "71849cc91b854ddd675b60700961f6d8fc71bccb1d995808f4ea35e39f569aec",
+      "writer": "Spark 4.1.3",
+      "tables": {
+        "region": {
+          "rows": 5,
+          "files": 1
+        },
+        "nation": {
+          "rows": 25,
+          "files": 1
+        },
+        "supplier": {
+          "rows": 5000,
+          "files": 1
+        },
+        "customer": {
+          "rows": 75000,
+          "files": 1
+        },
+        "part": {
+          "rows": 100000,
+          "files": 1
+        },
+        "partsupp": {
+          "rows": 400000,
+          "files": 4
+        },
+        "orders": {
+          "rows": 750000,
+          "files": 4
+        },
+        "lineitem": {
+          "rows": 2999671,
+          "files": 4
+        },
+        "orders_nested_v2": {
+          "rows": 750000,
+          "files": 6
+        }
+      }
+    },
+    "duckdb-sf10": {
+      "status": "ok",
+      "manifest_sha256": "f67d06b1d585057aece52424afc33a3ef7c2587914203204515aa87759735e5a",
+      "dataset_id": "cfe5fe63aafceb0640ceff7c2c06dc1a72fdd5b66b0e89d4e92c35b0b3a2dde4",
+      "schema_id": "1e68524ffc49ea3b77f47398b0195bccb011c31e43593e38a01645f5b7951c71",
+      "source_identity": "223062f06ab3239e012029cdce28e0dbb0c7a608cfa6c1f356b343bb36d69730",
+      "writer": "v1.5.5 (Variegata) d8cdaa33fd",
+      "tables": {
+        "region": {
+          "rows": 5,
+          "files": 1
+        },
+        "nation": {
+          "rows": 25,
+          "files": 1
+        },
+        "supplier": {
+          "rows": 100000,
+          "files": 1
+        },
+        "customer": {
+          "rows": 1500000,
+          "files": 1
+        },
+        "part": {
+          "rows": 2000000,
+          "files": 1
+        },
+        "partsupp": {
+          "rows": 8000000,
+          "files": 1
+        },
+        "orders": {
+          "rows": 15000000,
+          "files": 1
+        },
+        "lineitem": {
+          "rows": 59986052,
+          "files": 1
+        },
+        "orders_nested_v2": {
+          "rows": 15000000,
+          "files": 241
+        }
+      }
+    }
+  },
+  "code_snapshots": {
+    "source": {
+      "datagen/generate.py": "fa331e0832b768ea3c0f62f6c9a02535057e2752512298ee7053f16191df66ba",
+      "datagen/spark.py": "60a97f05a43c2fce86727fc054acaed56d17a08228180d0b05473356ef5276a4",
+      "ndc/nest.py": "980efff5a5d506ac12d36571348f275b30ecdfb07867804b370010d1d652768a",
+      "ndc/nested.sql": "70a8692193c0cf8c79bcd71f357a58f88d623515d70e86349e5e23e6558339cd"
+    },
+    "review-source": {
+      "datagen/generate.py": "de1450f1a984b6c0003c1bbad8dde144ba29649563102aea479b44354bf5571d",
+      "datagen/spark.py": "90395ee2282488da8236647301f5cfa78e0371f4a36dc1f2216415bec00b073a",
+      "ndc/nest.py": "0de4ebcfb96ba1d4503bf5d92e2acffe221451b06067ba69f41fb04c356443a0",
+      "ndc/nested.sql": "a5af1614b4ca2791026d97741e0eeea267bad35e8f75e20c6c02fed2650b3ed8"
+    }
+  },
+  "final_checks": {
+    "repository": {
+      "tests": 70,
+      "log_sha256": "2d2c99c8953cf841572219a2bc741a2bba6b5fde2857b72c3615eed6348c7736"
+    },
+    "spark_fixture": {
+      "master": "local[2]",
+      "driver_heap": "2g",
+      "log_sha256": "382bbb09d379c098473fbad5d669bd432a01f99464dde5cac6f595fb966aa3a4"
+    }
+  },
+  "completion": {
+    "status": "stopped_after_current_run",
+    "last_stage_returncode": 0,
+    "not_run": [
+      "spark-sf10"
+    ],
+    "reason": "User requested Apollo reboot; no further runs."
+  }
+}
