@@ -110,6 +110,7 @@ or the phase commands.
 | `SPARK41_BASE` | `$HOME/ndc-spark41` | Verified distribution and JAR directory |
 | `SPARK_MASTER` | `local[4]` | Spark execution target; only local host orchestration supported |
 | `SPARK_DRIVER_MEM` | `8g` | Driver heap; also disclose native/off-heap limits |
+| `NDC_PREP_KEY_SPAN` | `250000` | Order-key range per legacy nesting batch; smaller ranges reduce aggregation memory |
 | `NDC_PREP_MEMORY` | `8GB` | DuckDB memory limit for generation, export, nesting, invariants, parity and depth preparation; independent of Spark heap |
 | `FORMATS` | `parquet iceberg delta` | Space-separated format cells |
 | `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
@@ -169,9 +170,11 @@ whose `gen.sql` contains the original `8GB` default. Each DuckDB preparation sta
 logs its limit and stops on SQL errors. The limit is not a process memory cap;
 Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
 
-[Apollo validation](../docs/apollo-validation.md) passed SF0.5 with a 16 GiB
-preparation budget. SF10 nesting failed with both 16 and 32 GiB, and the standalone
-SF10 importer failed at 16 GiB. No tested SF10 memory budget is recommended.
+The earlier [Apollo validation](../docs/apollo-validation.md) used unbounded
+nesting: SF0.5 passed at 16 GiB; SF10 nesting failed at 16 and 32 GiB, and the
+standalone importer failed at 16 GiB. The runner now nests bounded key ranges
+before assembling its existing single-file output. The canonical importer also
+supports [Spark preparation](../datagen/README.md#spark-preparation).
 Retain failed outputs for diagnostics and choose a fresh workspace for any retry.
 Increasing this setting does not establish an SF1000 preparation path.
 

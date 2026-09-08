@@ -1,3 +1,4 @@
+-- Query template for nest.py, which bounds aggregation by order-key range.
 -- Nested transform: ORDERS + lineitem struct-array. Parity invariant: per-order
 -- composition preserved; no line item added, dropped, or altered.
 SET threads TO 4;

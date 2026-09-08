@@ -193,7 +193,8 @@ case "${1:-}" in
     chmod +x "$ws/run.sh"
     echo "BOOTSTRAPPED $ws" ;;
   gen) mkdir -p data results; prepare_sql gen.sql tpch.duckdb ;;
-  conv|nested) prepare_sql "$CODE/$1.sql" tpch.duckdb ;;
+  conv) prepare_sql "$CODE/conv.sql" tpch.duckdb ;;
+  nested) python3 "$CODE/nest.py" ;;
   depths|depthsmoke)
     prepare_sql "$CODE/depths.sql" tpch.duckdb
     grep -q 'PARITY_OK' results/parity_depths.txt || { cat results/parity_depths.txt; exit 1; } ;;

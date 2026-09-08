@@ -21,11 +21,11 @@ example dataset in the generator guide:
 ```sh
 nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/ddl.sql
 nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb -c \
-  "INSERT INTO orders_nested_v2 SELECT * FROM read_parquet('workspaces/shared/sf1-v2/orders_nested_v2.parquet');"
+  "INSERT INTO orders_nested_v2 SELECT * FROM read_parquet('workspaces/shared/sf1-v2/orders_nested_v2.parquet/*.parquet');"
 nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/queries/lineitem_totals.sql
 ```
 
-For Spark, execute its DDL in an isolated warehouse, then load the same file with
+For Spark, execute its DDL in an isolated warehouse, then load the same file or directory with
 `spark.read.parquet(path).write.insertInto('orders_nested_v2')`. Qualification also
 flattens every child and checks both directions against the original source rows.
 

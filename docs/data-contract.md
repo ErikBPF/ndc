@@ -28,11 +28,14 @@ representing the source data, not a claim to reproduce every generator's DDL.
 
 The [standalone importer and transformer](../datagen/README.md) accepts the eight
 unpartitioned `.tbl` files from a pinned TPC-H generator, or eight typed Parquet
-source tables. It uses DuckDB as a preparation tool, independently of the consuming
-engine. The official generator is obtained and run separately.
+source tables (single files or Parquet directories). DuckDB and Spark preparation
+backends implement the same logical model, independently of the consuming engine. The official generator is obtained and run separately.
 
-Output contains nine Parquet files and `dataset.json`: schema identity, input
+Output contains nine Parquet tables and `dataset.json`: schema identity, input
 checksums, declared source label, writer version, row counts and output checksums.
+Tables may be single files or directories of Parquet parts. A table's `sha256`
+evidence is a digest for a single file, or a filename-to-digest map for a directory.
+Artifact identity includes that physical layout; schema identity is unchanged.
 Invalid keys, orphan children, lossy typed casts and malformed numeric text fail
 before a successful dataset is declared. Existing output directories are refused.
 `--verify` checks the schema and artifact identities before import; it does not

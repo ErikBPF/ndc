@@ -12,7 +12,13 @@ from test_portable_data import ROOT, ROWS
 with tempfile.TemporaryDirectory() as tmp:
     root=Path(tmp);inputs=root/'input';inputs.mkdir();out=root/'dataset'
     for name,rows in ROWS.items():(inputs/(name+'.tbl')).write_text('\n'.join(rows)+'\n')
-    subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(inputs),'--out',str(out),'--source-label','qualification fixture'],check=True)
+    sys.path.insert(0,str(ROOT/'datagen'))
+    if '--spark-backend' in sys.argv:
+        from spark import generate
+        generate(inputs,out,'tbl','qualification fixture')
+        subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(out),'--input-format','parquet','--out',str(root/'reimport'),'--memory-limit','256MiB'],check=True)
+    else:
+        subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(inputs),'--out',str(out),'--key-span','1','--source-label','qualification fixture'],check=True)
     spark=(SparkSession.builder.appName('ndc-portable-data').config('spark.sql.warehouse.dir',str(root/'warehouse'))
            .config('spark.sql.shuffle.partitions','2').config('spark.ui.enabled','false').getOrCreate())
     spark.sparkContext.setLogLevel('ERROR')
@@ -38,3 +44,18 @@ with tempfile.TemporaryDirectory() as tmp:
         assert [tuple(row) for row in actual]==[(1,0),(2,0),(3,0),(4,2)]
         print('PORTABLE_SPARK_OK: complete roundtrip, ordered children, inner/outer query parity')
     finally:spark.stop()
+
+    if '--spark-backend' in sys.argv:
+        import json
+        for label,rows,message in [
+            ('duplicate',ROWS['lineitem']+[ROWS['lineitem'][0]],'duplicate key'),
+            ('orphan',[ROWS['lineitem'][0].replace('1|10|','999|10|',1)],'orphan key'),
+            ('precision',[ROWS['lineitem'][0].replace('20.20','20.205',1)],'invalid source value')]:
+            (inputs/'lineitem.tbl').write_text('\n'.join(rows)+'\n')
+            failed=root/label
+            try:generate(inputs,failed,'tbl','invalid fixture')
+            except ValueError as error:
+                assert message in str(error),str(error)
+                assert json.loads((failed/'dataset.json').read_text())['status']=='failed'
+            else:raise AssertionError(f'{label} input was accepted')
+        print('SPARK_PREPARATION_ERRORS_OK: duplicate, orphan, precision; DuckDB reimport passed')
