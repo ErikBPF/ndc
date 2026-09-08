@@ -73,6 +73,9 @@ class PortableDataTests(unittest.TestCase):
                 marker=self.root/out/'dataset.json'
                 self.assertEqual(json.loads(marker.read_text())['status'],'failed')
                 self.assertIn('duplicate key' if len(rows)==3 else 'orphan key',p.stderr)
+                verification=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--verify',str(marker.parent)],capture_output=True,text=True)
+                self.assertNotEqual(verification.returncode,0)
+                self.assertIn('invalid dataset contract',verification.stderr)
     def test_text_input_cannot_round_decimal_or_integer_values(self):
         for index,old,new in [(0,'20.20','20.205'),(1,'1|10|','1.5|10|')]:
             with self.subTest(value=new):

@@ -164,19 +164,16 @@ build parameters. Regenerating shape files in place is rejected. Rebuilding tabl
 formats intentionally replaces their prepared copies and records a new physical
 identity. A stale or altered format copy fails preflight before timing.
 
-If SF10 preparation exhausts the default DuckDB budget, retry in a fresh workspace:
+Preparation memory is configurable at execution time, including older workspaces
+whose `gen.sql` contains the original `8GB` default. Each DuckDB preparation stage
+logs its limit and stops on SQL errors. The limit is not a process memory cap;
+Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
 
-```sh
-./ndc/run.sh bootstrap 10 sf10-prep16
-NDC_WORKSPACE="$PWD/workspaces/tpch-sf10-prep16" NDC_PREP_MEMORY=16GiB \
-  ./ndc/run.sh build-scale
-```
-
-The setting applies at execution time, including older workspaces whose `gen.sql`
-contains the original `8GB` default. Each DuckDB preparation stage logs its limit
-and stops on SQL errors. `16GiB` is a retry budget, not a verified SF10 requirement
-or a process memory cap; leave host memory and disk headroom. Spark shape/format
-preparation still uses `SPARK_DRIVER_MEM`.
+[Apollo validation](../docs/apollo-validation.md) passed SF0.5 with a 16 GiB
+preparation budget. SF10 nesting failed with both 16 and 32 GiB, and the standalone
+SF10 importer failed at 16 GiB. No tested SF10 memory budget is recommended.
+Retain failed outputs for diagnostics and choose a fresh workspace for any retry.
+Increasing this setting does not establish an SF1000 preparation path.
 
 ## CI
 

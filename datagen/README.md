@@ -50,10 +50,13 @@ The transformer uses four worker threads and a `4GB` DuckDB memory limit by defa
 Set `--memory-limit 16GiB` or `NDC_PREP_MEMORY=16GiB` for a larger preparation budget;
 the CLI option takes precedence. The manifest records preparation settings separately
 from dataset identity. These are engine settings, not process-level resource caps.
-Allow disk for the source,
-working database and output. Generation writes into a fresh directory. Failed
+Allow disk for the source, working database and output. Generation writes into a fresh directory. Failed
 outputs remain for diagnostics with a failed manifest; choose a new output path
 for a retry. A successful manifest is written only after validation and checksums.
+
+[Apollo validation](../docs/apollo-validation.md) passed SF0.5 import at 16 GiB
+but SF10 import exhausted that limit. The override is a resource control, not a
+claim that a particular scale will fit.
 
 ## Consume and qualify
 

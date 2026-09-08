@@ -25,7 +25,7 @@ def literal(value):
 
 def verify(directory):
     record=json.loads((directory/'dataset.json').read_text())
-    tables=record['tables']
+    tables=record.get('tables',{})
     if (record.get('status')!='ok' or record.get('schema_version')!=2
             or record.get('schema_id')!=identity(SCHEMA)
             or set(tables)!=set(SCHEMA['tables'])|{'orders_nested_v2'}):
