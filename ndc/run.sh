@@ -53,6 +53,20 @@ printf 'NDC stage=%s starting\n' "$1"
 MASTER=${SPARK_MASTER:-local[4]}
 DMEM=${SPARK_DRIVER_MEM:-8g}
 
+prepare_sql() {
+  local file=$1; shift
+  local memory=${NDC_PREP_MEMORY:-8GB}
+  [[ $memory =~ ^[1-9][0-9]*(\.[0-9]+)?(KB|MB|GB|TB|KiB|MiB|GiB|TiB)$ ]] || {
+    echo 'Invalid NDC_PREP_MEMORY (example: 16GiB)' >&2; return 2;
+  }
+  printf 'NDC preparation memory_limit=%s sql=%s\n' "$memory" "$file" >&2
+  {
+    printf "SET memory_limit='%s';\n" "$memory"
+    # Older workspaces embed this default in gen.sql. Runtime settings take precedence.
+    sed "/^SET memory_limit='8GB';$/d" "$file"
+  } | duckdb -bail "$@"
+}
+
 engine_flags() {
   local engine=$1 fmt=$2
   JVM_FLAGS=(--master "$MASTER" --driver-memory "$DMEM")
@@ -173,21 +187,21 @@ case "${1:-}" in
     [[ ! -e $ws ]] || { echo "Workspace already exists: $ws" >&2; exit 2; }
     mkdir -p "$ws"
     printf '%s\n' "$sf" > "$ws/scale.txt"
-    printf "SET threads TO 4;\nSET memory_limit='8GB';\nINSTALL tpch; LOAD tpch;\nCALL dbgen(sf = %s);\n" "$sf" > "$ws/gen.sql"
+    printf "SET threads TO 4;\nINSTALL tpch; LOAD tpch;\nCALL dbgen(sf = %s);\n" "$sf" > "$ws/gen.sql"
     cp "$CODE/bench.conf" "$ws/bench.conf"
     printf '#!/usr/bin/env bash\nexport NDC_WORKSPACE=%q\nexec %q "$@"\n' "$ws" "$CODE/run.sh" > "$ws/run.sh"
     chmod +x "$ws/run.sh"
     echo "BOOTSTRAPPED $ws" ;;
-  gen) mkdir -p data results; duckdb tpch.duckdb < gen.sql ;;
-  conv|nested) duckdb tpch.duckdb < "$CODE/$1.sql" ;;
+  gen) mkdir -p data results; prepare_sql gen.sql tpch.duckdb ;;
+  conv|nested) prepare_sql "$CODE/$1.sql" tpch.duckdb ;;
   depths|depthsmoke)
-    duckdb tpch.duckdb < "$CODE/depths.sql"
+    prepare_sql "$CODE/depths.sql" tpch.duckdb
     grep -q 'PARITY_OK' results/parity_depths.txt || { cat results/parity_depths.txt; exit 1; } ;;
   qualify|qualify-references) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
   qualify-engine) python3 "$CODE/qualification.py" "${2:?engine required}" "${3:-parquet}" ;;
-  invariants) duckdb tpch.duckdb < "$CODE/invariants.sql" ;;
+  invariants) prepare_sql "$CODE/invariants.sql" tpch.duckdb ;;
   parity)
-    duckdb < "$CODE/parity.sql"
+    prepare_sql "$CODE/parity.sql"
     grep -q 'PARITY_OK' results/parity.txt || { cat results/parity.txt; exit 1; } ;;
   size-check)
     duckdb -csv tpch.duckdb -c "SELECT (SELECT count(*) FROM lineitem) lineitem,

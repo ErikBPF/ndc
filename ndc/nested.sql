@@ -1,7 +1,6 @@
 -- Nested transform: ORDERS + lineitem struct-array. Parity invariant: per-order
 -- composition preserved; no line item added, dropped, or altered.
 SET threads TO 4;
-SET memory_limit='8GB';
 
 COPY (
   SELECT o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate,

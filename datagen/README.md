@@ -46,8 +46,11 @@ Expected names: `region`, `nation`, `supplier`, `customer`, `part`, `partsupp`,
 `DECIMAL(15,2)` exactly. Text input uses integer keys and ISO `YYYY-MM-DD` dates;
 invalid values are rejected instead of rounded.
 
-The transformer uses four worker threads and a 4 GiB DuckDB memory limit; these
-are engine settings, not process-level resource caps. Allow disk for the source,
+The transformer uses four worker threads and a `4GB` DuckDB memory limit by default.
+Set `--memory-limit 16GiB` or `NDC_PREP_MEMORY=16GiB` for a larger preparation budget;
+the CLI option takes precedence. The manifest records preparation settings separately
+from dataset identity. These are engine settings, not process-level resource caps.
+Allow disk for the source,
 working database and output. Generation writes into a fresh directory. Failed
 outputs remain for diagnostics with a failed manifest; choose a new output path
 for a retry. A successful manifest is written only after validation and checksums.

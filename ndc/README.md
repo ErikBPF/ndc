@@ -110,6 +110,7 @@ or the phase commands.
 | `SPARK41_BASE` | `$HOME/ndc-spark41` | Verified distribution and JAR directory |
 | `SPARK_MASTER` | `local[4]` | Spark execution target; only local host orchestration supported |
 | `SPARK_DRIVER_MEM` | `8g` | Driver heap; also disclose native/off-heap limits |
+| `NDC_PREP_MEMORY` | `8GB` | DuckDB memory limit for generation, export, nesting, invariants, parity and depth preparation; independent of Spark heap |
 | `FORMATS` | `parquet iceberg delta` | Space-separated format cells |
 | `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
 | `RUNS` | `3` | Measured repetitions for matrix and measurement phases; qualification fixes one |
@@ -162,6 +163,20 @@ For scale/shape sweeps, bootstrap a different workspace for each point and set i
 build parameters. Regenerating shape files in place is rejected. Rebuilding table
 formats intentionally replaces their prepared copies and records a new physical
 identity. A stale or altered format copy fails preflight before timing.
+
+If SF10 preparation exhausts the default DuckDB budget, retry in a fresh workspace:
+
+```sh
+./ndc/run.sh bootstrap 10 sf10-prep16
+NDC_WORKSPACE="$PWD/workspaces/tpch-sf10-prep16" NDC_PREP_MEMORY=16GiB \
+  ./ndc/run.sh build-scale
+```
+
+The setting applies at execution time, including older workspaces whose `gen.sql`
+contains the original `8GB` default. Each DuckDB preparation stage logs its limit
+and stops on SQL errors. `16GiB` is a retry budget, not a verified SF10 requirement
+or a process memory cap; leave host memory and disk headroom. Spark shape/format
+preparation still uses `SPARK_DRIVER_MEM`.
 
 ## CI
 

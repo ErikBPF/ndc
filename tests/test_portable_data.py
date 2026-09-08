@@ -1,5 +1,6 @@
 """Shared dataset contract, exercised through its public CLI and SQL adapters."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -29,8 +30,22 @@ class PortableDataTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.inputs=self.root/'input';self.inputs.mkdir()
         for table,rows in ROWS.items():(self.inputs/f'{table}.tbl').write_text('\n'.join(rows)+'\n')
-    def generate(self,out='dataset'):
-        return subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(self.inputs),'--out',str(self.root/out),'--source-label','test fixture'],capture_output=True,text=True)
+    def generate(self,out='dataset',*args,env=None):
+        return subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(self.inputs),'--out',str(self.root/out),'--source-label','test fixture',*args],capture_output=True,text=True,env=env)
+    def test_preparation_memory_configuration_and_invalid_input(self):
+        env=dict(os.environ,NDC_PREP_MEMORY='256MiB')
+        result=self.generate('env',env=env)
+        self.assertEqual(result.returncode,0,result.stderr)
+        record=json.loads((self.root/'env/dataset.json').read_text())
+        self.assertEqual(record['preparation']['memory_limit'],'256MiB')
+        result=self.generate('cli','--memory-limit','512MiB',env=env)
+        self.assertEqual(result.returncode,0,result.stderr)
+        other=json.loads((self.root/'cli/dataset.json').read_text())
+        self.assertEqual(other['preparation']['memory_limit'],'512MiB')
+        self.assertEqual(record['dataset_id'],other['dataset_id'])
+        result=self.generate('invalid','--memory-limit',"4GB'; SELECT 1; --")
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse((self.root/'invalid').exists())
     def test_lossless_roundtrip_order_empty_parent_and_metadata(self):
         p=self.generate();self.assertEqual(p.returncode,0,p.stderr)
         out=self.root/'dataset';m=json.loads((out/'dataset.json').read_text())

@@ -2,7 +2,9 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+import re
 import subprocess
 
 ROOT=Path(__file__).resolve().parent
@@ -48,15 +50,18 @@ def ddl(engine):
     return f'-- Schema v2; nested non-null and key invariants are validated by datagen.\nCREATE TABLE orders_nested_v2 (\n    {header},\n    lineitems {nested} NOT NULL\n)'+(' USING PARQUET' if engine=='spark' else '')+';\n'
 
 
-def generate(inputs,out,fmt,label):
+def generate(inputs,out,fmt,label,memory_limit='4GB'):
+    if not re.fullmatch(r'[1-9][0-9]*(\.[0-9]+)?(?:KB|MB|GB|TB|KiB|MiB|GiB|TiB)',memory_limit):
+        raise ValueError('invalid preparation memory limit (example: 16GiB)')
     paths={name:inputs/f'{name}.{fmt}' for name in SCHEMA['tables']}
     for path in paths.values():
         if not path.is_file():raise ValueError(f'missing source table: {path.name}')
     source={name:digest(path) for name,path in paths.items()}
     out.mkdir(parents=True,exist_ok=False)
-    marker={'status':'failed','schema_version':2,'schema_id':identity(SCHEMA),'source_label':label,'source_format':fmt,'source_files':source}
+    marker={'status':'failed','schema_version':2,'schema_id':identity(SCHEMA),'source_label':label,'source_format':fmt,'source_files':source,
+            'preparation':{'memory_limit':memory_limit,'threads':4}}
     (out/'dataset.json').write_text(json.dumps(marker,indent=2)+'\n')
-    statements=["SET threads=4; SET memory_limit='4GB';"]
+    statements=[f"SET threads=4; SET memory_limit={literal(memory_limit)};"]
     for name,spec in SCHEMA['tables'].items():
         fields=spec['fields']
         if fmt=='tbl':
@@ -121,13 +126,15 @@ def main():
     p.add_argument('--input',type=Path);p.add_argument('--out',type=Path)
     p.add_argument('--input-format',choices=['tbl','parquet'],default='tbl')
     p.add_argument('--source-label',default='unrecorded')
+    p.add_argument('--memory-limit',default=os.environ.get('NDC_PREP_MEMORY','4GB'),
+                   help='DuckDB preparation memory (default: NDC_PREP_MEMORY or 4GB)')
     p.add_argument('--ddl',choices=['duckdb','spark','snowflake'])
     p.add_argument('--verify',type=Path,help='verify schema and checksums of an existing dataset')
     a=p.parse_args()
     if a.ddl:print(ddl(a.ddl),end='');return
     if not a.verify and (not a.input or not a.out):p.error('--input and --out are required for generation')
     try:
-        result=verify(a.verify.resolve()) if a.verify else generate(a.input.resolve(),a.out.resolve(),a.input_format,a.source_label)
+        result=verify(a.verify.resolve()) if a.verify else generate(a.input.resolve(),a.out.resolve(),a.input_format,a.source_label,a.memory_limit)
         print('DATASET_OK',result['dataset_id'])
     except (OSError,ValueError,KeyError,TypeError,subprocess.CalledProcessError) as error:p.exit(1,f'DATASET_INVALID: {error}\n')
 
