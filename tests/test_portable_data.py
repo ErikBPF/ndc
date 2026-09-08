@@ -135,6 +135,18 @@ class PortableDataTests(unittest.TestCase):
         result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(out),'--input-format','parquet','--out',str(self.root/'reimport')],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
 
+    def test_empty_tables_and_negative_key_partition(self):
+        for case in ('empty','negative'):
+            with self.subTest(case=case):
+                for table in ('orders','lineitem'):
+                    rows=[] if case=='empty' else [('-1|'+row[2:]) if row.startswith('1|') else row for row in ROWS[table]]
+                    (self.inputs/(table+'.tbl')).write_text('\n'.join(rows)+('\n' if rows else ''))
+                result=self.generate(case,'--key-span','2')
+                self.assertEqual(result.returncode,0,result.stderr)
+                out=self.root/case
+                rows=sql("SELECT o_orderkey,array_length(lineitems) AS n FROM read_parquet('orders_nested_v2.parquet/*.parquet') ORDER BY o_orderkey",out)
+                self.assertEqual(rows,[] if case=='empty' else [{'o_orderkey':-1,'n':2},{'o_orderkey':2,'n':0}])
+
     def test_published_ddl_matches_the_schema(self):
         for engine in ('duckdb','spark','snowflake'):
             result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--ddl',engine],capture_output=True,text=True,check=True)
