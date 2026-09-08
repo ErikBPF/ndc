@@ -73,6 +73,7 @@ jobs:
         run: |
           nix develop "path:$PWD/nix" -c "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
             --master 'local[2]' --driver-memory 2g tests/portable_spark.py
+          nix develop "path:$PWD/nix" -c "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
             --master 'local[2]' --driver-memory 2g tests/portable_spark.py --spark-backend
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
