@@ -44,12 +44,14 @@ def generate(inputs,out,fmt,label):
                 reject(raw.where((F.size('fields')!=len(fields)+1) | (F.element_at('fields',-1)!='')),
                        f'invalid trailing delimiter or field count: {name}')
                 raw=raw.select(*[F.col('fields')[i].alias(n) for i,n in enumerate(names)])
+                invalid=[]
                 for field in fields:
                     kind=field['type'];pattern=None
                     if kind in ('BIGINT','INTEGER'):pattern=r'^[+-]?[0-9]+$'
                     elif kind.startswith('DECIMAL'):pattern=r'^[+-]?[0-9]+(\.[0-9]{1,2})?$'
                     elif kind=='DATE':pattern=r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-                    if pattern:reject(raw.where(~F.col(field['name']).rlike(pattern)),f'invalid source value: {name}.{field["name"]}')
+                    if pattern:invalid.append(~F.col(field['name']).rlike(pattern))
+                if invalid:reject(raw.where(reduce(or_,invalid)),f'invalid source value: {name}')
             else:
                 raw=spark.read.parquet(*[str(p) for p in parquet_files(paths[name])])
                 if sorted(raw.columns)!=sorted(names):raise ValueError(f'unexpected source columns: {name}')
