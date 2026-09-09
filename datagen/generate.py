@@ -16,7 +16,10 @@ def identity(value):
 
 
 def digest(path):
-    with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
+    checksum=hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda:stream.read(1024*1024),b''):checksum.update(block)
+    return checksum.hexdigest()
 
 
 def literal(value):

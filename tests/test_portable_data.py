@@ -32,6 +32,20 @@ def split_orders_with_extra_column(directory):
         "COPY (SELECT *, 42 AS extra FROM read_parquet('original-orders.parquet') WHERE o_orderkey=2) TO 'orders.parquet/part-1.parquet';",directory)
 
 class PortableDataTests(unittest.TestCase):
+    def test_streaming_checksum_without_python311_file_digest(self):
+        script="""
+import hashlib, tempfile
+from pathlib import Path
+from generate import digest
+hashlib.file_digest=None
+with tempfile.TemporaryDirectory() as directory:
+    path=Path(directory)/'data'
+    for data in (b'', b'ndc'*(1024*1024)):
+        path.write_bytes(data)
+        assert digest(path)==hashlib.sha256(data).hexdigest()
+"""
+        subprocess.run([sys.executable,'-c',script],cwd=ROOT/'datagen',check=True)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.inputs=self.root/'input';self.inputs.mkdir()
