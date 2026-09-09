@@ -174,7 +174,7 @@ The runner now nests bounded key ranges
 before assembling its existing single-file output. The canonical importer also
 supports [Spark preparation](../datagen/README.md#spark-preparation).
 Retain failed outputs for diagnostics and choose a fresh workspace for any retry.
-Increasing this setting does not establish an SF1000 preparation path.
+Increasing the memory limit does not establish an SF1000 preparation path.
 
 ## CI
 
