@@ -62,8 +62,7 @@ prepare_sql() {
   printf 'NDC preparation memory_limit=%s sql=%s\n' "$memory" "$file" >&2
   {
     printf "SET memory_limit='%s';\n" "$memory"
-    # Older workspaces embed this default in gen.sql. Runtime settings take precedence.
-    sed "/^SET memory_limit='8GB';$/d" "$file"
+    cat "$file"
   } | duckdb -bail "$@"
 }
 

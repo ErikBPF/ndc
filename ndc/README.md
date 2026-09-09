@@ -164,8 +164,7 @@ build parameters. Regenerating shape files in place is rejected. Rebuilding tabl
 formats intentionally replaces their prepared copies and records a new physical
 identity. A stale or altered format copy fails preflight before timing.
 
-Preparation memory is configurable at execution time, including older workspaces
-whose `gen.sql` contains the original `8GB` default. Each DuckDB preparation stage
+Preparation memory is configurable at execution time. Each DuckDB preparation stage
 logs its limit and stops on SQL errors. The limit is not a process memory cap;
 Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
 

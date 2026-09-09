@@ -10,12 +10,12 @@ from test_harness import ROOT, module
 
 
 class InterfaceTests(unittest.TestCase):
-    def test_preparation_memory_overrides_legacy_workspace_and_fails_fast(self):
+    def test_preparation_memory_configuration_and_fails_fast(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE=tmp,NDC_PREP_MEMORY='256MiB')
             command=[str(ROOT/'ndc/run.sh'),'gen']
-            (root/'gen.sql').write_text("SET memory_limit='8GB';\nSELECT current_setting('memory_limit');\n")
+            (root/'gen.sql').write_text("SELECT current_setting('memory_limit');\n")
             result=subprocess.run(command,env=env,capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertIn('256.0 MiB',result.stdout)
