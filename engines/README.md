@@ -10,6 +10,10 @@ They are starter adapters, not replacements for the complete
 | Spark | [DDL](spark/ddl.sql) | [Inner](spark/queries/lineitem_totals.sql), [outer](spark/queries/outer_item_counts.sql) | `tests/portable_spark.py` |
 | Snowflake | [DDL](snowflake/ddl.sql) | [Inner](snowflake/queries/lineitem_totals.sql), [outer](snowflake/queries/outer_item_counts.sql) | Live qualification required |
 
+Comet uses the Spark dialect and the same canonical files. Its acceleration settings
+belong to execution, not the data model or query semantics. Each additional engine
+implements the shared inner/outer expansion contract in its own SQL dialect.
+
 DDL is generated from `datagen/schema.json`; regenerate a dialect with
 `python3 datagen/generate.py --ddl duckdb` (or `spark`, `snowflake`). Tests check
 that published DDL matches the schema. Nested nullability and key constraints are

@@ -50,6 +50,10 @@ The [data-model one-pager](docs/data-contract.md) defines a lossless nested sche
 Version 2 is a separate shared-data path; existing measurement suites keep their
 dataset contracts.
 
+The [SF1000 deployment proposal](docs/sf1000-deployment-proposal.md) describes
+distributed preparation and a devenv/DevSpace/just workflow for review. It is not
+an implemented or qualified production path.
+
 ## Validity before comparison
 
 Every timed repetition is checked, including complete rows, duplicate multiplicity,
