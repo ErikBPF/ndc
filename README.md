@@ -47,8 +47,7 @@ guide setup, correctness qualification, measurement and reporting.
 
 The [data-model one-pager](docs/data-contract.md) defines a lossless nested schema,
 [standalone preparation](datagen/README.md) and [dialect-specific DDL/query templates](engines/README.md).
-Version 2 is a separate shared-data path; existing measurement suites keep their
-dataset contracts.
+The runner and engine adapters use this same canonical dataset contract.
 
 ## Validity before comparison
 

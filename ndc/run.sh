@@ -3,13 +3,13 @@
 set -euo pipefail
 CODE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$CODE")
-usage() { printf '%s\n' 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|compare <label=result.json>...|experiment <spec.json> --out <directory>|bundle <campaign>|check (SUITE selects workloads; test/full/throughput remain aliases)'; }
+usage() { printf '%s\n' 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|shapes|build-fmt <fmt>|size-check|invariants|qualify-references|qualify-engine <engine> [fmt]|spark <engine> <fmt> [manifest] [runs]|matrix|latency|shared-throughput|maintenance|plan <out.json>|report <campaign>|compare <label=result.json>...|experiment <spec.json> --out <directory>|bundle <campaign>|check (SUITE selects workloads)'; }
 if [[ ${1:-} == --help || ${1:-} == -h || ${1:-} == help ]]; then usage; exit 0; fi
 if [[ $# == 0 ]]; then usage; exit 2; fi
 if [[ ${NDC_IN_ENV:-} != 1 ]]; then
   exec nix develop "path:$ROOT/nix" -c env NDC_IN_ENV=1 bash "$0" "$@"
 fi
-if [[ $1 == check || $1 == test ]]; then
+if [[ $1 == check ]]; then
   cd "$ROOT"
   python3 -m unittest discover -s tests -v
   shellcheck ndc/run.sh
@@ -62,8 +62,7 @@ prepare_sql() {
   printf 'NDC preparation memory_limit=%s sql=%s\n' "$memory" "$file" >&2
   {
     printf "SET memory_limit='%s';\n" "$memory"
-    # Older workspaces embed this default in gen.sql. Runtime settings take precedence.
-    sed "/^SET memory_limit='8GB';$/d" "$file"
+    cat "$file"
   } | duckdb -bail "$@"
 }
 
@@ -107,7 +106,7 @@ spark_run() {
   fi
   local args=(--fmt "$fmt" --data "$PWD/data" --out "$out" --runs "$runs"
     --sf "$(cat scale.txt)" --campaign-id "$(basename "$campaign")" --streams "${STREAMS:-1}"
-    --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-${SEED:-7}}"
+    --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-7}"
     --plan "$campaign/plan.json" --phase "${NDC_PHASE:-matrix}" --cache "${CACHE:-uncontrolled}"
     --layout-mode "${LAYOUT_MODE:-matched}" --validation "${VALIDATION:-collect}")
   [[ $eng != comet ]] || args+=(--comet)
@@ -136,7 +135,7 @@ freeze_plan() {
   local selection=(--suite "${SUITE:-all}")
   [[ -z $queries ]] || selection=(--queries "$queries")
   python3 "$CODE/schedule.py" "${selection[@]}" --out "$out" --phase "$phase" \
-    --runs "$runs" --streams "${STREAMS:-1}" --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-${SEED:-7}}"
+    --runs "$runs" --streams "${STREAMS:-1}" --warmups "${WARMUPS:-1}" --seed "${QUERY_SEED:-7}"
 }
 
 matrix() { # Continue for diagnostics, but any failed cell fails the campaign.
@@ -192,15 +191,18 @@ case "${1:-}" in
     printf '#!/usr/bin/env bash\nexport NDC_WORKSPACE=%q\nexec %q "$@"\n' "$ws" "$CODE/run.sh" > "$ws/run.sh"
     chmod +x "$ws/run.sh"
     echo "BOOTSTRAPPED $ws" ;;
-  gen) mkdir -p data results; prepare_sql gen.sql tpch.duckdb ;;
+  gen) mkdir -p source results; prepare_sql gen.sql tpch.duckdb ;;
   conv) prepare_sql "$CODE/conv.sql" tpch.duckdb ;;
-  nested) python3 "$CODE/nest.py" ;;
-  depths|depthsmoke)
+  prepare)
+    python3 "$ROOT/datagen/generate.py" --input "$PWD/source" --input-format parquet \
+      --out "$PWD/data" --source-label "DuckDB tpch dbgen SF$(cat scale.txt)" \
+      --memory-limit "${NDC_PREP_MEMORY:-8GB}" --key-span "${NDC_PREP_KEY_SPAN:-250000}" ;;
+  depths)
     prepare_sql "$CODE/depths.sql" tpch.duckdb
     grep -q 'PARITY_OK' results/parity_depths.txt || { cat results/parity_depths.txt; exit 1; } ;;
-  qualify|qualify-references) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
+  qualify-references) python3 "$CODE/qualify.py" "$PWD/tpch.duckdb" ;;
   qualify-engine) python3 "$CODE/qualification.py" "${2:?engine required}" "${3:-parquet}" ;;
-  invariants) prepare_sql "$CODE/invariants.sql" tpch.duckdb ;;
+  invariants) python3 "$ROOT/datagen/generate.py" --verify "$PWD/data" ;;
   parity)
     prepare_sql "$CODE/parity.sql"
     grep -q 'PARITY_OK' results/parity.txt || { cat results/parity.txt; exit 1; } ;;
@@ -213,7 +215,7 @@ case "${1:-}" in
     python3 "$CODE/check_size.py" gen.sql results/size-check.csv "$CODE/sizes.csv" ;;
   shapes)
     engine_flags vanilla parquet
-    spark-submit "${JVM_FLAGS[@]}" "$CODE/shapes.py" --data "$PWD/data" --parents "${PARENTS:-128}" --fanout "${FANOUT:-64}" --width "${WIDTH:-8}" --seed "${DATA_SEED:-${SEED:-7}}" ;;
+    spark-submit "${JVM_FLAGS[@]}" "$CODE/shapes.py" --data "$PWD/data" --parents "${PARENTS:-128}" --fanout "${FANOUT:-64}" --width "${WIDTH:-8}" --seed "${DATA_SEED:-7}" ;;
   build-fmt)
     engine_flags vanilla "${2:?format required}"
     spark-submit "${JVM_FLAGS[@]}" "$CODE/write_fmt.py" --fmt "$2" --data "$PWD/data" ;;
@@ -221,7 +223,7 @@ case "${1:-}" in
     "$CODE/run.sh" gen
     "$CODE/run.sh" size-check
     "$CODE/run.sh" conv
-    "$CODE/run.sh" nested
+    "$CODE/run.sh" prepare
     "$CODE/run.sh" invariants
     if [[ $(cat scale.txt) == 0.0083 ]]; then "$CODE/run.sh" qualify-references; fi
     "$CODE/run.sh" parity
@@ -239,11 +241,11 @@ PY
     ;;
   spark) spark_run "${2:?engine required}" "${3:-parquet}" "${4:-$CODE/queries/manifest-full.json}" "${5:-3}" "${6:-no}" ;;
   lite) FORMATS=parquet SUITE=${SUITE:-tpch} matrix 1 no "${QUERIES:-}" ;;
-  full|comet-default|matrix) matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" ;;
+  matrix) matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" ;;
   latency) SUITE=${SUITE:-read} STREAMS=1 matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" latency ;;
   maintenance) SUITE=${SUITE:-maintenance} STREAMS=1 matrix "${RUNS:-3}" "${DROP_CACHES:-no}" "${QUERIES:-}" maintenance ;;
   plan) freeze_plan "${2:?output JSON path required}" "${QUERIES:-}" "${RUNS:-3}" "${NDC_PHASE:-matrix}" ;;
-  throughput|shared-throughput) SUITE=${SUITE:-ds} STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-}" shared-throughput ;;
+  shared-throughput) SUITE=${SUITE:-ds} STREAMS=${STREAMS:-2} matrix "${RUNS:-3}" no "${QUERIES:-}" shared-throughput ;;
   bundle) python3 "$CODE/bundle.py" "${2:?campaign required}" ;;
   report) python3 "$CODE/report.py" "${2:?campaign directory required}" "${2}/report.md" ;;
   *) usage; exit 2 ;;

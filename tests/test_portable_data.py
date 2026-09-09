@@ -135,16 +135,16 @@ with tempfile.TemporaryDirectory() as directory:
         self.assertNotEqual(result.returncode,0)
         self.assertIn('invalid table evidence',result.stderr)
 
-    def test_legacy_nesting_matches_existing_projection(self):
+    def test_runner_prepares_canonical_dataset(self):
         result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
-        out=self.root/'dataset';(out/'data').mkdir()
-        commands="ATTACH 'tpch.duckdb' AS target;"+''.join(f"CREATE TABLE target.{name} AS SELECT * FROM read_parquet('{name}.parquet');" for name in ('orders','lineitem'))
-        sql(commands,out)
-        result=subprocess.run([sys.executable,str(ROOT/'ndc/nest.py')],cwd=out,env=dict(os.environ,NDC_PREP_MEMORY='256MiB',NDC_PREP_KEY_SPAN='1'),capture_output=True,text=True)
-        self.assertEqual(result.returncode,0,result.stderr)
-        sql((ROOT/'ndc/nested.sql').read_text().replace("'data/orders_nested.parquet'","'expected.parquet'").replace('FROM orders o JOIN lineitem l',"FROM read_parquet('orders.parquet') o JOIN read_parquet('lineitem.parquet') l"),out)
-        self.assertEqual(sql("SELECT * FROM read_parquet('data/orders_nested.parquet') EXCEPT ALL SELECT * FROM read_parquet('expected.parquet')",out),[])
-        self.assertEqual(sql("SELECT * FROM read_parquet('expected.parquet') EXCEPT ALL SELECT * FROM read_parquet('data/orders_nested.parquet')",out),[])
+        (self.root/'dataset').rename(self.root/'source')
+        (self.root/'scale.txt').write_text('fixture')
+        env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE=str(self.root),NDC_PREP_MEMORY='256MiB',NDC_PREP_KEY_SPAN='1')
+        for stage in ('prepare','invariants'):
+            result=subprocess.run([str(ROOT/'ndc/run.sh'),stage],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+        rows=sql("SELECT o_orderkey,o_comment,array_length(lineitems) AS children FROM read_parquet('data/orders_nested_v2.parquet/*.parquet') ORDER BY o_orderkey",self.root)
+        self.assertEqual(rows,[{'o_orderkey':1,'o_comment':'order comment','children':2},{'o_orderkey':2,'o_comment':'empty order','children':0}])
 
     def test_reimport_parquet_file_collections(self):
         result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
@@ -174,12 +174,6 @@ with tempfile.TemporaryDirectory() as directory:
         self.assertNotEqual(result.returncode,0)
         self.assertIn('unexpected source columns: orders',result.stderr)
 
-    def test_legacy_nesting_reports_sql_errors(self):
-        (self.root/'data').mkdir()
-        result=subprocess.run([sys.executable,str(ROOT/'ndc/nest.py')],cwd=self.root,env=dict(os.environ,NDC_PREP_MEMORY='256MiB'),capture_output=True,text=True)
-        self.assertNotEqual(result.returncode,0)
-        self.assertIn('Catalog Error',result.stderr)
-        self.assertIn('orders',result.stderr)
 
     def test_published_ddl_matches_the_schema(self):
         for engine in ('duckdb','spark','snowflake'):

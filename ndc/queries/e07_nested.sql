@@ -1,1 +1,1 @@
-SELECT upper(substring(p.p_brand, 1, 5)) AS b, count(*) AS n FROM (SELECT explode(lineitems) AS li FROM orders_nested) t JOIN part p ON li.l_partkey = p.p_partkey WHERE li.l_shipmode = 'TRUCK' GROUP BY 1 ORDER BY 1
+SELECT upper(substring(p.p_brand, 1, 5)) AS b, count(*) AS n FROM (SELECT explode(lineitems) AS li FROM orders_nested_v2) t JOIN part p ON li.l_partkey = p.p_partkey WHERE li.l_shipmode = 'TRUCK' GROUP BY 1 ORDER BY 1

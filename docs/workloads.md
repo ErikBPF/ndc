@@ -17,16 +17,15 @@ preserving those contracts. See [engine integration](engines.md).
 
 ## Data contracts
 
-The separate [version 2 shared-data contract](data-contract.md) retains all order
-and line-item fields. The measurement suites below continue using the existing
-projection and fixtures; their results must not be mixed with version 2 inputs.
+The [shared-data contract](data-contract.md) retains all order and line-item
+fields and is used by the measurement suites.
 
 - TPC-H: DuckDB's `tpch` extension supplies eight base tables. `sizes.csv` records
   exact counts for 0.0083, 0.5, 1 and 10, including nation and region.
-- `orders_nested`: order headers plus ordered `array<struct>` line items. This is
-  a projection: 12 line-item fields are retained, not all original TPC-H columns.
-  `invariants.sql` checks exact leaf bags, values, duplicates, parent membership,
-  and parent cardinality. Leaf order is explicitly `l_linenumber`.
+- `orders_nested_v2`: complete order headers plus ordered `array<struct>` line
+  items, retaining empty parents. Preparation validates keys, relationships and
+  exact header/leaf bags; `invariants` verifies the canonical manifest and file
+  checksums. Leaf order is explicitly `l_linenumber`.
 - `orders_depth1..8`: the same four-field Q6 leaf with alternating wrappers.
   Added arrays are singletons. This suite isolates wrapper overhead, not fan-out.
 - `shape`: synthetic parents with nullable `items`, independent `returns`,
@@ -35,7 +34,7 @@ projection and fixtures; their results must not be mixed with version 2 inputs.
   `shape.json` records generation parameters; `shapes.records` is deterministic.
 
 `PARENTS`, `FANOUT`, `WIDTH`, and `DATA_SEED` control the synthetic fixture at build
-time. `DATA_SEED` falls back to `SEED`, then 7; `QUERY_SEED` only controls query order.
+time. `DATA_SEED` defaults to 7; `QUERY_SEED` only controls query order.
 Null arrays, empty arrays, null elements, null amount/tag leaves, duplicate values,
 and ties are deliberate. Parent cardinalities cycle through 0, 1, 4, 16, and the
 maximum fan-out (bounded by that maximum). Sweep fan-out and width in fresh

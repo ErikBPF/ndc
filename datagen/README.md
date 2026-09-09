@@ -87,8 +87,7 @@ and every executor (for example, a shared filesystem). Object-store paths and
 cluster provisioning are not implemented by this CLI.
 
 Both backends reject invalid source keys and values and validate exact order and
-line-item round trips before publishing success. `--verify` accepts the original
-single-file datasets and the new file collections; checksums cover every part.
+line-item round trips before publishing success. `--verify` checks each table file or collection; checksums cover every part.
 File names, compression and partitioning can differ between writers, so artifact
 IDs can differ for logically equal data. Prepare once and share those exact files
 for benchmark comparisons.

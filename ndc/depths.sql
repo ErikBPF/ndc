@@ -1,5 +1,5 @@
 -- Depth sweep d=1..8 on SF10. All depth tables are Parquet files under data/.
--- depth1: list_transform over the already-built orders_nested.parquet (no aggregation).
+-- depth1: list_transform over the already-built orders_nested_v2.parquet (no aggregation).
 -- depth d>1: single-projection wrap of depth d-1, CHAINED from the previous file.
 -- Parity: CTE-per-unnest chains (chained FROM-UNNEST does not correlate over TVFs).
 -- Invariant: every depth returns the exact flat-Q6 count and revenue.
@@ -10,7 +10,7 @@ COPY (
          list_transform(lineitems, li -> struct_pack(
              l_shipdate := li.l_shipdate, l_quantity := li.l_quantity,
              l_discount := li.l_discount, l_extendedprice := li.l_extendedprice)) AS c
-  FROM read_parquet('data/orders_nested.parquet')
+  FROM read_parquet('data/orders_nested_v2.parquet/*.parquet')
 ) TO 'data/orders_depth1.parquet' (FORMAT parquet);
 COPY (SELECT o_orderkey, struct_pack(inner := c) AS c FROM read_parquet('data/orders_depth1.parquet')) TO 'data/orders_depth2.parquet' (FORMAT parquet);
 COPY (SELECT o_orderkey, list_value(struct_pack(inner := c)) AS c FROM read_parquet('data/orders_depth2.parquet')) TO 'data/orders_depth3.parquet' (FORMAT parquet);

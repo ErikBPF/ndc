@@ -22,8 +22,8 @@ excluded. Every warm-up and every measured repetition must validate.
 Queries consume a schedule frozen before Spark startup. `plan.json` retains full
 SQL, references, warm-ups and seeded permutations for every repetition and stream.
 Cells embed the same plan; reports check its identity and actual sample order.
-`QUERY_SEED` controls query order independently of synthetic `DATA_SEED`; `SEED`
-is the legacy fallback for both. Fixed SQL literals are not randomized. Engine
+`QUERY_SEED` controls query order independently of synthetic `DATA_SEED`; both
+default to 7. Fixed SQL literals are not randomized. Engine
 order alternates across format cells. Separate-process engine cells still have
 order effects; this is not per-repetition interleaving across engines. Use repeated
 campaigns with reversed `ENGINES` order for performance claims. `STREAMS>1` runs
@@ -98,7 +98,7 @@ Schema-v2 cells include the complete manifest and its verified identity, campaig
 identities, source hashes, source
 commit when available, runtime versions, JAR hashes, selected effective settings,
 host/CPU/memory information, run order seed, cache treatment, and per-sample status.
-Dataset identity includes physical input file hashes and sizes. `dataset.json`
+Dataset identity includes physical input file hashes and sizes. `inventory.json`
 provides that inventory. Retain physical file layout and writer versions with it.
 The dedicated `nix/` flake keeps dataset/result trees out of Nix source copies.
 The bundled Spark and DuckDB versions are pinned; format preparation is shared

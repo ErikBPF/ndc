@@ -4,7 +4,7 @@ SET threads TO 4;
 INSTALL parquet; LOAD parquet;
 
 CREATE OR REPLACE TABLE lineitem AS FROM 'data/lineitem.parquet';
-CREATE OR REPLACE TABLE orders_nested AS FROM 'data/orders_nested.parquet';
+CREATE OR REPLACE TABLE orders_nested_v2 AS FROM 'data/orders_nested_v2.parquet/*.parquet';
 
 CREATE OR REPLACE TABLE q1_flat AS
 SELECT l_returnflag, l_linestatus,
@@ -22,7 +22,7 @@ SELECT li.l_returnflag, li.l_linestatus,
        sum(li.l_extendedprice * (1 - li.l_discount)) AS sum_disc_price,
        sum(li.l_extendedprice * (1 - li.l_discount) * (1 + li.l_tax)) AS sum_charge,
        count(*) AS cnt
-FROM (SELECT unnest(lineitems, recursive := false) AS li FROM orders_nested)
+FROM (SELECT unnest(lineitems, recursive := false) AS li FROM orders_nested_v2)
 WHERE li.l_shipdate <= DATE '1998-09-02'
 GROUP BY li.l_returnflag, li.l_linestatus ORDER BY li.l_returnflag, li.l_linestatus;
 
@@ -40,7 +40,7 @@ SELECT sum(la) AS revenue FROM (
                  AND x.l_discount BETWEEN 0.05 AND 0.07
                  AND x.l_quantity < 24),
            x -> x.l_extendedprice * x.l_discount), 'sum') AS la
-  FROM orders_nested)
+  FROM orders_nested_v2)
 WHERE la IS NOT NULL;
 
 .mode json

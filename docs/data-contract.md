@@ -58,10 +58,14 @@ DuckDB and Spark qualification checks load the same fixture, preserve complete
 values and validate the query answers. Snowflake templates require live
 qualification against the chosen table/loading mode before measurements.
 
-## Compatibility and next boundary
+## Runner integration and next boundary
 
-Version 2 is a separate data path. The existing `orders_nested` projection,
-depth/shape fixtures and measurement suites retain their contracts. The portable
-SQL examples do not imply that every NDC workload or its result reporter has been
-ported. Extend engine qualification and semantic result identity before making
-cross-engine performance comparisons. See [adapter usage](../engines/README.md).
+The benchmark runner uses this same lossless dataset and `orders_nested_v2`
+table. Depth and shape fixtures extend it for their workloads. `dataset.json`
+retains the canonical contract; `inventory.json` identifies all benchmark files,
+including those fixtures. There is no separate reduced nesting projection.
+
+Portable SQL examples do not imply that every workload or result reporter has
+been ported to every engine. Extend engine qualification and semantic result
+identity before making cross-engine performance comparisons. See
+[adapter usage](../engines/README.md).
