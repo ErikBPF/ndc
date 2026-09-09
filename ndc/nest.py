@@ -15,7 +15,7 @@ def main():
     if span<1:raise ValueError('NDC_PREP_KEY_SPAN must be positive')
     def sql(query,json_output=False):
         result=subprocess.run(['duckdb','tpch.duckdb','-bail',*(['-json'] if json_output else [])],
-                              input=f"SET threads=4; SET memory_limit='{memory}';\n"+query,text=True,capture_output=True,check=True)
+                              input=f"SET threads=4; SET memory_limit='{memory}';\n"+query,text=True,stdout=subprocess.PIPE,check=True)
         return json.loads(result.stdout or '[]') if json_output else None
     buckets=sql(f'SELECT DISTINCT (o_orderkey // {span}) - CASE WHEN o_orderkey<0 AND o_orderkey % {span} != 0 THEN 1 ELSE 0 END AS bucket FROM orders ORDER BY bucket;',True)
     template=Path(__file__).with_name('nested.sql').read_text().split('COPY (',1)[1].rsplit(") TO ",1)[0]

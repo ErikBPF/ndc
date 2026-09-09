@@ -27,7 +27,7 @@ SF10 verifier could start. All task processes were stopped before reboot clearan
 Spark SF10 subsequently completed on ext4 as recorded below. SF1000 and
 Kubernetes execution were not tested.
 
-Final review validation: 70 repository tests plus shell checks passed locally and
+Pre-scale review validation: 70 repository tests plus shell checks passed locally and
 on Apollo. Spark fixtures at local[2] / 2 GiB passed ordered children, empty parents,
 full round trips, inner/outer query parity, DuckDB reimport of Spark file collections,
 and rejection of duplicate keys, orphan keys and excess decimal precision.
@@ -69,3 +69,17 @@ The tested source is commit `815a7b94eaceea29fafb56d614e61a5552e12fe0`.
 settings, source identity, row counts, log hashes and sampled memory. Different
 storage and execution conditions prevent treating these wall times as an isolated
 DuckDB-versus-Spark performance comparison. No higher scale was generated.
+
+## Final review
+
+Two reproduced issues were fixed after the scale runs. Both importers now inspect
+combined Parquet schemas before validating columns: an extra column present only
+in a later part previously disappeared silently. Legacy nesting now forwards
+DuckDB stderr so failed SQL exposes its actual diagnostic.
+
+Regression checks failed before the fixes and passed afterward. The final code
+passed 72 repository tests plus shell checks locally and on Apollo, and the Spark
+fixture suite at local[2] / 2 GiB, including mixed-schema rejection. The scale
+results above predate these validation/diagnostic fixes; SF0.5 and SF10 were not
+regenerated during this review. Their inputs had uniform schemas, and the nesting
+algorithm and resource settings are unchanged.

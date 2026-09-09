@@ -7,7 +7,7 @@ import tempfile
 from pyspark.sql import SparkSession
 
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from test_portable_data import ROOT, ROWS
+from test_portable_data import ROOT, ROWS, split_orders_with_extra_column
 
 with tempfile.TemporaryDirectory() as tmp:
     root=Path(tmp);inputs=root/'input';inputs.mkdir();out=root/'dataset'
@@ -59,3 +59,9 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert json.loads((failed/'dataset.json').read_text())['status']=='failed'
             else:raise AssertionError(f'{label} input was accepted')
         print('SPARK_PREPARATION_ERRORS_OK: duplicate, orphan, precision; DuckDB reimport passed')
+
+        split_orders_with_extra_column(root/'reimport')
+        try:generate(root/'reimport',root/'mixed-schema','parquet','mixed-schema fixture')
+        except ValueError as error:assert 'unexpected source columns: orders' in str(error),str(error)
+        else:raise AssertionError('extra columns in a later Parquet part were accepted')
+        print('SPARK_MULTIPART_SCHEMA_OK')

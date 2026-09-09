@@ -29,7 +29,8 @@ representing the source data, not a claim to reproduce every generator's DDL.
 The [standalone importer and transformer](../datagen/README.md) accepts the eight
 unpartitioned `.tbl` files from a pinned TPC-H generator, or eight typed Parquet
 source tables (single files or Parquet directories). DuckDB and Spark preparation
-backends implement the same logical model, independently of the consuming engine. The official generator is obtained and run separately.
+backends implement the same logical model, independently of the consuming engine.
+The official generator is obtained and run separately.
 
 Output contains nine Parquet tables and `dataset.json`: schema identity, input
 checksums, declared source label, writer version, row counts and output checksums.

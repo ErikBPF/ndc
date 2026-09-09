@@ -93,7 +93,7 @@ def generate(inputs,out,fmt,label,memory_limit='4GB',key_span=250000):
                 if pattern:
                     statements.append(f"SELECT CASE WHEN EXISTS(SELECT 1 FROM {source_sql} WHERE NOT regexp_full_match({f['name']},{literal(pattern)})) THEN error('invalid source value: {name}.{f['name']}') END;")
         else:
-            source_sql=f'read_parquet([{",".join(literal(f) for f in parquet_files(paths[name]))}])'
+            source_sql=f'read_parquet([{",".join(literal(f) for f in parquet_files(paths[name]))}], union_by_name=true)'
             names=','.join(literal(f['name']) for f in fields)
             statements.append(f"SELECT CASE WHEN (SELECT list_sort(list(column_name)) FROM (DESCRIBE SELECT * FROM {source_sql})) != list_sort([{names}]) THEN error('unexpected source columns: {name}') END;")
         casts=','.join(f"CAST({f['name']} AS {f['type']}) AS {f['name']}" for f in fields)

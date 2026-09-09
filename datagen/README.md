@@ -43,7 +43,8 @@ nix develop path:nix -c python3 datagen/generate.py \
 
 Expected names: `region`, `nation`, `supplier`, `customer`, `part`, `partsupp`,
 `orders`, `lineitem`, with the selected file extension. Parquet columns must match the schema exactly
-(column order may differ). Decimal values must fit
+(column order may differ). Schemas are checked across every Parquet part, so an
+extra column in a later part is rejected. Decimal values must fit
 `DECIMAL(15,2)` exactly. Text input uses integer keys and ISO `YYYY-MM-DD` dates;
 invalid values are rejected instead of rounded.
 

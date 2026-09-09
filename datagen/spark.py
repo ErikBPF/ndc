@@ -53,7 +53,7 @@ def generate(inputs,out,fmt,label):
                     if pattern:invalid.append(~F.col(field['name']).rlike(pattern))
                 if invalid:reject(raw.where(reduce(or_,invalid)),f'invalid source value: {name}')
             else:
-                raw=spark.read.parquet(*[str(p) for p in parquet_files(paths[name])])
+                raw=spark.read.option('mergeSchema','true').parquet(*[str(p) for p in parquet_files(paths[name])])
                 if sorted(raw.columns)!=sorted(names):raise ValueError(f'unexpected source columns: {name}')
                 # Compare typed values before persisting so decimal rounding cannot hide a change.
                 changed=[~F.col(f['name']).cast(f['type'].replace('VARCHAR','STRING')).eqNullSafe(F.col(f['name'])) for f in fields]

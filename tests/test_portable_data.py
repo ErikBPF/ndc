@@ -25,6 +25,12 @@ def sql(query,cwd):
     if p.returncode:raise AssertionError(p.stderr)
     return json.loads(p.stdout) if p.stdout.strip() else []
 
+def split_orders_with_extra_column(directory):
+    (directory/'orders.parquet').rename(directory/'original-orders.parquet')
+    (directory/'orders.parquet').mkdir()
+    sql("COPY (SELECT * FROM read_parquet('original-orders.parquet') WHERE o_orderkey=1) TO 'orders.parquet/part-0.parquet';"
+        "COPY (SELECT *, 42 AS extra FROM read_parquet('original-orders.parquet') WHERE o_orderkey=2) TO 'orders.parquet/part-1.parquet';",directory)
+
 class PortableDataTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
@@ -146,6 +152,20 @@ class PortableDataTests(unittest.TestCase):
                 out=self.root/case
                 rows=sql("SELECT o_orderkey,array_length(lineitems) AS n FROM read_parquet('orders_nested_v2.parquet/*.parquet') ORDER BY o_orderkey",out)
                 self.assertEqual(rows,[] if case=='empty' else [{'o_orderkey':-1,'n':2},{'o_orderkey':2,'n':0}])
+
+    def test_rejects_unmodeled_columns_in_later_parquet_parts(self):
+        result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
+        out=self.root/'dataset';split_orders_with_extra_column(out)
+        result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(out),'--input-format','parquet','--out',str(self.root/'mixed')],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('unexpected source columns: orders',result.stderr)
+
+    def test_legacy_nesting_reports_sql_errors(self):
+        (self.root/'data').mkdir()
+        result=subprocess.run([sys.executable,str(ROOT/'ndc/nest.py')],cwd=self.root,env=dict(os.environ,NDC_PREP_MEMORY='256MiB'),capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Catalog Error',result.stderr)
+        self.assertIn('orders',result.stderr)
 
     def test_published_ddl_matches_the_schema(self):
         for engine in ('duckdb','spark','snowflake'):
