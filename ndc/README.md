@@ -169,11 +169,8 @@ whose `gen.sql` contains the original `8GB` default. Each DuckDB preparation sta
 logs its limit and stops on SQL errors. The limit is not a process memory cap;
 Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
 
-[Apollo validation](../docs/apollo-validation.md) passed SF0.5 with a 16 GiB
-preparation budget. SF10 nesting failed with both 16 and 32 GiB, and the standalone
-SF10 importer failed at 16 GiB. No tested SF10 memory budget is recommended.
 Retain failed outputs for diagnostics and choose a fresh workspace for any retry.
-Increasing this setting does not establish an SF1000 preparation path.
+Increasing the memory limit does not establish an SF1000 preparation path.
 
 ## CI
 

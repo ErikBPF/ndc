@@ -54,9 +54,8 @@ Allow disk for the source, working database and output. Generation writes into a
 outputs remain for diagnostics with a failed manifest; choose a new output path
 for a retry. A successful manifest is written only after validation and checksums.
 
-[Apollo validation](../docs/apollo-validation.md) passed SF0.5 import at 16 GiB
-but SF10 import exhausted that limit. The override is a resource control, not a
-claim that a particular scale will fit.
+The memory override is a resource control, not a guarantee that a particular
+scale will fit.
 
 ## Consume and qualify
 
