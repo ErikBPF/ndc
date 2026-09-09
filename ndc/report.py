@@ -16,7 +16,7 @@ def load_cell(path):
     frozen=json.loads(plan_path.read_text()) if plan_path.exists() else None
     cell = json.loads(path.read_text())
     if not isinstance(cell,dict) or cell.get('schema_version') != 2 or cell.get('parity_ok') is not True:
-        raise ValueError(f'{path.name}: invalid or legacy cell')
+        raise ValueError(f'{path.name}: invalid cell')
     if not cell.get('results'):
         raise ValueError(f'{path.name}: empty results')
     manifest = cell.get('manifest')
@@ -101,7 +101,7 @@ def load_cells(directory):
 def render(cells):
     comparison=next(iter(cells.values()))['comparison']
     lines = ['# NDC results', '',
-             f'Intent: {next(iter(cells.values())).get("run_intent", "unrecorded")}; phase: {comparison.get("phase", "legacy")}; stream model: {comparison.get("stream_model", "unspecified")}; validation: {comparison.get("validation", "collect")}.', '',
+             f'Intent: {next(iter(cells.values())).get("run_intent", "unrecorded")}; phase: {comparison.get("phase", "unrecorded")}; stream model: {comparison.get("stream_model", "unspecified")}; validation: {comparison.get("validation", "collect")}.', '',
              'TPC-H-derived; TPC-DS-inspired. Not comparable to published TPC results.', '',
              'Ratios are Spark / Comet medians. No overall score or significance verdict.', '',
              'Exploratory timings: this report does not establish balanced candidate execution or statistical significance.', '',

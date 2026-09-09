@@ -366,7 +366,7 @@
     }
   },
   "nested": {
-    "table": "orders_nested_v2",
+    "table": "orders_nested",
     "parent": "orders",
     "child": "lineitem",
     "parent_key": "o_orderkey",

@@ -14,9 +14,8 @@ Intent: [correctness or performance; default to correctness]
 
 Read the repository instructions and README.md, then docs/engines.md,
 docs/workloads.md, docs/methodology.md, docs/experiments.md and
-docs/validation.md. For shared version 2 inputs, also read docs/data-contract.md
-and datagen/README.md; verify the dataset before loading it. Keep version 2
-adapters separate from the legacy measurement suites. Follow the selected
+docs/validation.md. For shared inputs, also read docs/data-contract.md
+and datagen/README.md; verify the dataset before loading it. The runner and adapters use the same canonical data contract. Follow the selected
 engine's setup and command guide.
 Use the checked-out source and CLI help to verify commands. NDC's contracts
 are engine-independent; do not assume its bundled implementation supports

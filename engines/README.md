@@ -1,6 +1,6 @@
 # Shared-data SQL adapters
 
-These DDL and query templates implement the [version 2 data contract](../docs/data-contract.md).
+These DDL and query templates implement the [canonical data contract](../docs/data-contract.md).
 They are starter adapters, not replacements for the complete
 [benchmark runner](../docs/engines.md#engine-scripts).
 
@@ -19,14 +19,14 @@ Verify the canonical dataset before loading. For DuckDB, after preparing the
 example dataset in the generator guide:
 
 ```sh
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/ddl.sql
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb -c \
-  "INSERT INTO orders_nested_v2 SELECT * FROM read_parquet('workspaces/shared/sf1-v2/orders_nested_v2.parquet');"
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/queries/lineitem_totals.sql
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/ddl.sql
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb -c \
+  "INSERT INTO orders_nested SELECT * FROM read_parquet('workspaces/shared/sf1/orders_nested.parquet/*.parquet');"
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/queries/lineitem_totals.sql
 ```
 
-For Spark, execute its DDL in an isolated warehouse, then load the same file with
-`spark.read.parquet(path).write.insertInto('orders_nested_v2')`. Qualification also
+For Spark, execute its DDL in an isolated warehouse, then load the same file or directory with
+`spark.read.parquet(path).write.insertInto('orders_nested')`. Qualification also
 flattens every child and checks both directions against the original source rows.
 
 Snowflake uses typed ARRAY/OBJECT fields, with quoted lowercase child names.

@@ -6,6 +6,17 @@ from test_harness import module
 
 
 class ProvenanceTests(unittest.TestCase):
+    def test_inventory_preserves_canonical_manifest_and_is_stable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);manifest=root/'dataset.json'
+            manifest.write_text('{"status":"ok"}')
+            (root/'part.parquet').write_bytes(b'data')
+            provenance=module('provenance')
+            first=provenance.dataset(root)
+            self.assertEqual(first,provenance.dataset(root))
+            self.assertEqual(manifest.read_text(),'{"status":"ok"}')
+            self.assertEqual(set(first['files']),{'part.parquet'})
+
     def test_changed_format_input_is_detected(self):
         provenance=module('provenance')
         self.assertTrue(hasattr(provenance,'format_identity'),'format fingerprint missing')
@@ -22,7 +33,7 @@ class ProvenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); campaign=root/'results/campaign';campaign.mkdir(parents=True)
             data=root/'data';data.mkdir()
-            (data/'dataset.json').write_text(json.dumps({'dataset_id':'new','files':{}}))
+            (data/'inventory.json').write_text(json.dumps({'dataset_id':'new','files':{}}))
             (campaign/'spark_vanilla_parquet.json').write_text(json.dumps({'dataset_id':'measured'}))
             with self.assertRaisesRegex(ValueError, 'dataset'):
                 module('bundle').create(campaign, root/'source', root/'bundles')
@@ -32,13 +43,13 @@ class ProvenanceTests(unittest.TestCase):
             root=Path(tmp);campaign=root/'results/qualification/campaign';campaign.mkdir(parents=True)
             data=root/'data';data.mkdir()
             inventory={'files':{},'dataset_id':module('provenance').identity({})}
-            (data/'dataset.json').write_text(json.dumps(inventory))
+            (data/'inventory.json').write_text(json.dumps(inventory))
             (campaign/'spark_vanilla_parquet.json').write_text(json.dumps({'dataset_id':inventory['dataset_id']}))
             (campaign.parent/'qualification.json').write_text('{"status":"ok"}')
             archive=module('bundle').create(campaign,root/'source',root/'bundles')
             import tarfile
             with tarfile.open(archive) as tar:
-                self.assertIn('dataset/dataset.json',tar.getnames())
+                self.assertIn('dataset/inventory.json',tar.getnames())
                 self.assertIn('qualification/qualification.json',tar.getnames())
 
     def test_evidence_bundle_has_checksums_and_sources(self):

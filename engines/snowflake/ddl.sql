@@ -1,5 +1,5 @@
--- Schema v2; nested non-null and key invariants are validated by datagen.
-CREATE TABLE orders_nested_v2 (
+-- Canonical schema; nested non-null and key invariants are validated by datagen.
+CREATE TABLE orders_nested (
     o_orderkey BIGINT NOT NULL,
     o_custkey BIGINT NOT NULL,
     o_orderstatus VARCHAR NOT NULL,

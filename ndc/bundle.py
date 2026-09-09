@@ -11,7 +11,7 @@ from provenance import identity
 
 def create(campaign,source,destination):
     campaign,source,destination=map(Path,(campaign,source,destination))
-    workspace=next((p for p in campaign.parents if (p/'data/dataset.json').is_file()),campaign.parent.parent)
+    workspace=next((p for p in campaign.parents if (p/'data/inventory.json').is_file()),campaign.parent.parent)
     destination.mkdir(parents=True,exist_ok=True)
     archive=destination/(campaign.name+'.tar.gz')
     if archive.exists():raise ValueError(f'archive exists: {archive}')
@@ -23,16 +23,16 @@ def create(campaign,source,destination):
                     or path.name.endswith('.secrets.json') or path.suffix in ('.pem','.key')):continue
             files[prefix+'/'+str(path.relative_to(root))]=path.read_bytes()
     add_tree(campaign,'campaign',{'.json','.csv','.stdout','.md'})
-    for folder in ('ndc','tests','docs'):
+    for folder in ('ndc','datagen','tests','docs'):
         add_tree(source/folder,'source/'+folder,{'.py','.sh','.sql','.json','.out','.csv','.conf','.md'})
     add_tree(source/'.github/workflows','source/.github/workflows',{'.yml','.yaml'})
-    for name in ('nix/flake.nix','nix/flake.lock','README.md','LICENSE','NOTICE'):
+    for name in ('devenv.nix','devenv.yaml','devenv.lock','justfile','README.md','LICENSE','NOTICE'):
         path=source/name
         if path.is_file():files['source/'+name]=path.read_bytes()
     # Ensure the supplied snapshot really matches the measured implementation.
     for cell in campaign.glob('spark_*.json'):
         record=json.loads(cell.read_text())
-        inventory_path=workspace/'data/dataset.json'
+        inventory_path=workspace/'data/inventory.json'
         inventory=json.loads(inventory_path.read_text()) if inventory_path.is_file() else {}
         if (inventory.get('dataset_id') != record.get('dataset_id')
                 or identity(inventory.get('files')) != record.get('dataset_id')):
@@ -46,7 +46,7 @@ def create(campaign,source,destination):
             if content is None: raise ValueError(f'source missing from bundle: {relative}')
             actual=hashlib.sha256(content).hexdigest()
             if actual!=expected:raise ValueError(f'source changed after measurement: {relative}')
-    for name in ('dataset.json','shape.json'):
+    for name in ('dataset.json','inventory.json','shape.json'):
         path=workspace/'data'/name
         if path.is_file():files['dataset/'+name]=path.read_bytes()
     for path in workspace.glob('format-*.json'):

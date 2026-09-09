@@ -1,11 +1,10 @@
 -- DuckDB parity for the adapted query set; no timing measurements.
 -- Output: results/duckdb.json (answers), results/parity.txt (validity gate).
 SET threads TO 4;
-SET memory_limit='8GB';
 INSTALL parquet; LOAD parquet;
 
 CREATE OR REPLACE TABLE lineitem AS FROM 'data/lineitem.parquet';
-CREATE OR REPLACE TABLE orders_nested AS FROM 'data/orders_nested.parquet';
+CREATE OR REPLACE TABLE orders_nested AS FROM 'data/orders_nested.parquet/*.parquet';
 
 CREATE OR REPLACE TABLE q1_flat AS
 SELECT l_returnflag, l_linestatus,

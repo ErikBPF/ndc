@@ -22,10 +22,10 @@ def identity(value):
 def dataset(directory):
     root=Path(directory)
     files={str(p.relative_to(root)):{'bytes':p.stat().st_size,'sha256':digest(p)}
-           for p in sorted(root.rglob('*')) if p.is_file() and p.name!='dataset.json'
+           for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('dataset.json','inventory.json')
            and not p.name.startswith('.')}
     record={'dataset_id':identity(files),'files':files}
-    (root/'dataset.json').write_text(json.dumps(record,indent=2))
+    (root/'inventory.json').write_text(json.dumps(record,indent=2))
     return record
 
 
@@ -36,10 +36,10 @@ def candidate_metadata():
 
 
 def environment(spark, root):
-    code={str(p.relative_to(root)):digest(p) for p in sorted((root/'ndc').rglob('*'))
+    code={str(p.relative_to(root)):digest(p) for folder in ('ndc','datagen') for p in sorted((root/folder).rglob('*'))
           if p.is_file() and p.suffix in ('.py','.sh','.sql','.json','.out','.csv','.conf')
           and not any(x in p.parts for x in ('data','results','__pycache__'))}
-    for name in ('nix/flake.nix','nix/flake.lock'):
+    for name in ('devenv.nix','devenv.yaml','devenv.lock','justfile'):
         if (root/name).is_file(): code[name]=digest(root/name)
     commit=subprocess.run(['git','-C',str(root),'rev-parse','HEAD'],capture_output=True,text=True)
     artifacts={Path(p).name:digest(p) for p in os.environ.get('NDC_JARS','').split(',') if p}
