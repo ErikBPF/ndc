@@ -1,0 +1,233 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "ndc-sf1-20260909"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": {
+        "name": "spark",
+        "namespace": "ndc-sf1-20260909"
+      }
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "Role",
+      "metadata": {
+        "name": "spark",
+        "namespace": "ndc-sf1-20260909"
+      },
+      "rules": [
+        {
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "pods",
+            "services",
+            "configmaps"
+          ],
+          "verbs": [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "delete",
+            "patch"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "kind": "RoleBinding",
+      "metadata": {
+        "name": "spark",
+        "namespace": "ndc-sf1-20260909"
+      },
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "spark",
+          "namespace": "ndc-sf1-20260909"
+        }
+      ],
+      "roleRef": {
+        "apiGroup": "rbac.authorization.k8s.io",
+        "kind": "Role",
+        "name": "spark"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolume",
+      "metadata": {
+        "name": "ndc-sf1-20260909"
+      },
+      "spec": {
+        "capacity": {
+          "storage": "20Gi"
+        },
+        "accessModes": [
+          "ReadWriteMany"
+        ],
+        "persistentVolumeReclaimPolicy": "Retain",
+        "storageClassName": "",
+        "mountOptions": [
+          "vers=4.1",
+          "hard",
+          "addr=10.251.0.1"
+        ],
+        "nfs": {
+          "server": "10.251.0.1",
+          "path": "/mnt/microvms/ndc-validation/k8s-sf1-20260909"
+        },
+        "claimRef": {
+          "namespace": "ndc-sf1-20260909",
+          "name": "data"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "data",
+        "namespace": "ndc-sf1-20260909"
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteMany"
+        ],
+        "storageClassName": "",
+        "volumeName": "ndc-sf1-20260909",
+        "resources": {
+          "requests": {
+            "storage": "20Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "driver",
+        "namespace": "ndc-sf1-20260909"
+      },
+      "spec": {
+        "clusterIP": "None",
+        "selector": {
+          "app": "ndc-sf1-driver"
+        },
+        "ports": [
+          {
+            "name": "driver",
+            "port": 7078
+          },
+          {
+            "name": "blockmanager",
+            "port": 7079
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "executor-template",
+        "namespace": "ndc-sf1-20260909"
+      },
+      "data": {
+        "executor.json": "{\"apiVersion\": \"v1\", \"kind\": \"Pod\", \"metadata\": {\"labels\": {\"ndc-executor\": \"sf1\"}}, \"spec\": {\"affinity\": {\"podAntiAffinity\": {\"requiredDuringSchedulingIgnoredDuringExecution\": [{\"labelSelector\": {\"matchLabels\": {\"ndc-executor\": \"sf1\"}}, \"topologyKey\": \"kubernetes.io/hostname\"}]}}, \"containers\": [{\"name\": \"spark-kubernetes-executor\"}]}}"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "driver",
+        "namespace": "ndc-sf1-20260909",
+        "labels": {
+          "app": "ndc-sf1-driver"
+        }
+      },
+      "spec": {
+        "restartPolicy": "Never",
+        "serviceAccountName": "spark",
+        "nodeSelector": {
+          "kubernetes.io/hostname": "w-1"
+        },
+        "containers": [
+          {
+            "name": "driver",
+            "image": "apache/spark:4.1.3-scala2.13-java17-python3-ubuntu@sha256:9b0a6c2c860f5e7d18dd5270286fef32a09c7f5a7e2b0dbe5642de8a3a02ab3e",
+            "command": [
+              "/bin/bash",
+              "-c",
+              "set -euo pipefail\nwhile [ ! -f /ndc/ready ]; do sleep 2; done\ndate -u +%FT%TZ > /ndc/data/start.txt\n/opt/spark/bin/spark-submit --master k8s://https://kubernetes.default.svc:443 --deploy-mode client --driver-memory 2g --executor-memory 2g --executor-cores 2 --conf spark.executor.instances=2 --conf spark.dynamicAllocation.enabled=false --conf spark.sql.shuffle.partitions=32 --conf spark.ui.enabled=false --conf spark.driver.host=driver.ndc-sf1-20260909.svc --conf spark.driver.bindAddress=0.0.0.0 --conf spark.driver.port=7078 --conf spark.blockManager.port=7079 --conf spark.kubernetes.namespace=ndc-sf1-20260909 --conf spark.kubernetes.driver.pod.name=driver --conf spark.kubernetes.container.image=apache/spark:4.1.3-scala2.13-java17-python3-ubuntu@sha256:9b0a6c2c860f5e7d18dd5270286fef32a09c7f5a7e2b0dbe5642de8a3a02ab3e --conf spark.kubernetes.executor.request.cores=500m --conf spark.kubernetes.executor.limit.cores=2 --conf spark.executor.memoryOverhead=1024 --conf spark.kubernetes.executor.podTemplateFile=/config/executor.json --conf spark.kubernetes.executor.volumes.persistentVolumeClaim.data.options.claimName=data --conf spark.kubernetes.executor.volumes.persistentVolumeClaim.data.mount.path=/ndc --conf spark.local.dir=/ndc/scratch --conf spark.kubernetes.executor.volumes.persistentVolumeClaim.spark-local-dir-1.options.claimName=data --conf spark.kubernetes.executor.volumes.persistentVolumeClaim.spark-local-dir-1.mount.path=/scratch --conf spark.kubernetes.executor.volumes.persistentVolumeClaim.spark-local-dir-1.mount.subPath=scratch --conf spark.kubernetes.authenticate.serviceAccountName=spark /ndc/source/datagen/generate.py --backend spark --input /ndc/workspaces/tpch-sf1/data --input-format parquet --out /ndc/data/spark-sf1-final --source-label 'DuckDB 1.5.5 dbgen SF1; Apollo Kubernetes; ext4 NFS' 2>&1 | tee /ndc/data/spark-sf1.log\npython3 /ndc/source/datagen/generate.py --verify /ndc/data/spark-sf1-final | tee /ndc/data/verify.log\ndate -u +%FT%TZ > /ndc/data/end.txt\n"
+            ],
+            "env": [
+              {
+                "name": "SPARK_LOCAL_DIRS",
+                "value": "/ndc/scratch"
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": "1",
+                "memory": "3Gi"
+              },
+              "limits": {
+                "cpu": "2",
+                "memory": "3Gi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "data",
+                "mountPath": "/ndc"
+              },
+              {
+                "name": "config",
+                "mountPath": "/config"
+              },
+              {
+                "name": "scratch",
+                "mountPath": "/tmp"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "data",
+            "persistentVolumeClaim": {
+              "claimName": "data"
+            }
+          },
+          {
+            "name": "config",
+            "configMap": {
+              "name": "executor-template"
+            }
+          },
+          {
+            "name": "scratch",
+            "emptyDir": {
+              "sizeLimit": "2Gi"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

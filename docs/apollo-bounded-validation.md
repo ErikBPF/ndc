@@ -83,3 +83,50 @@ fixture suite at local[2] / 2 GiB, including mixed-schema rejection. The scale
 results above predate these validation/diagnostic fixes; SF0.5 and SF10 were not
 regenerated during this review. Their inputs had uniform schemas, and the nesting
 algorithm and resource settings are unchanged.
+
+## Kubernetes SF1 on ext4 (2026-09-09 UTC)
+
+Spark 4.1.3 preparation passed SF1 with a driver pod and two executor pods on
+Apollo's `apollo-dev` cluster, one executor on each worker (`w-1`, `w-2`).
+Execution plus standalone checksum verification took **170 seconds**, excluding
+flat generation and image pulls. All 1,500,000 orders and 6,001,215 line items
+passed exact round-trip validation. This qualifies preparation, not benchmark
+query execution or SF1000.
+
+Each JVM used a 2 GiB heap inside a 3 GiB pod limit. The driver requested 1 CPU;
+each executor requested 500m CPU, with a 2 CPU limit and two Spark task slots.
+Existing workloads reserved most worker CPU; a first attempt requesting 2 CPU
+per executor was stopped when its second executor could not schedule. Partial
+output was retained separately. This is a shared-cluster functional test, not an
+isolated throughput measurement.
+
+Metrics Server samples, polled every 10 seconds, reached approximately 1.32 GiB
+for the driver, 2.84 and 2.93 GiB for the executors, and 7.05 GiB summed across
+pods. These are sampled container working sets, not process RSS or guaranteed
+peaks. All final pods completed without OOM or restarts; executor memory was
+close to its limit, so these settings do not establish SF1000 sizing.
+
+The official image was pinned by digest (see manifest), with Python 3.10.12 and
+Java 17.0.19. Its Python version exposed a checksum compatibility defect:
+`hashlib.file_digest` requires Python 3.11. Commit `838160f` replaces it with
+streaming SHA-256 in 1 MiB blocks. All 73 repository tests and shell checks passed
+on Apollo; the checksum regression also passed inside the Python 3.10 image.
+The tested source matches that commit.
+
+The cluster's default local-path PVC is backed by Btrfs. For this test, source,
+output and Spark spill directories instead used a temporary NFSv4.1 export of
+`/mnt/microvms/ndc-validation/k8s-sf1-20260909` on Apollo's ext4 disk. Export access
+was restricted to the two worker IPs with root squashing. The NixOS workers
+needed the explicit `addr=10.251.0.1` mount option. The PVC's advertised 20 GiB
+capacity is not an enforced NFS quota. This temporary export is separate from
+the previously unavailable external NFS server.
+
+[Machine-readable results](evidence/apollo-k8s-sf1-20260909.json) include resource
+settings, counts, timing and artifact hashes. The
+[exact Kubernetes manifest](evidence/apollo-k8s-sf1-manifest.json) records RBAC,
+shared volume, driver command and executor placement. Reusing it requires a new
+run directory/output path, prepared flat inputs, reachable NFS export and the
+`ready` marker; it is evidence for this run, not a portable deployment profile.
+The ext4 run directory retains datasets, logs and resource samples.
+Temporary namespace, PVC/PV and NFS export were removed after evidence capture.
+No test pods or NFS server threads remain.
