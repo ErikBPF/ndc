@@ -71,7 +71,7 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh shapes` | Build synthetic shapes in a fresh data directory |
 | `./ndc/run.sh build-fmt iceberg` | Prepare matched flat and nested Iceberg tables; Delta analogous |
 | `./ndc/run.sh size-check` | Check all eight TPC-H table counts against the declared scale |
-| `./ndc/run.sh invariants` | Validate exact nested-leaf bags and parent membership in DuckDB |
+| `./ndc/run.sh invariants` | Verify the canonical dataset contract and all table checksums |
 | `./ndc/run.sh parity` | Compare flat and nested reference results in DuckDB |
 | `./ndc/run.sh qualify-references` | Check the 24 tiny pins using eight independent DuckDB flat queries |
 | `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 46 candidate workloads; one `qualification.json` verdict |
