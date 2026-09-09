@@ -6,10 +6,10 @@ SQL dialect. An engine must not independently regenerate different input for a
 comparison. NDC remains TPC-H-derived and TPC-DS-inspired, without TPC compliance
 or a TPC performance score.
 
-## Canonical dataset: version 2
+## Canonical dataset
 
 The [schema contract](../datagen/schema.json) defines eight relational TPC-H tables
-and `orders_nested_v2`. The nested table contains every order field and an ordered
+and `orders_nested`. The nested table contains every order field and an ordered
 list of line-item records. Each child retains every line-item field except
 `l_orderkey`, which is reconstructed from its parent’s `o_orderkey`.
 
@@ -28,11 +28,15 @@ representing the source data, not a claim to reproduce every generator's DDL.
 
 The [standalone importer and transformer](../datagen/README.md) accepts the eight
 unpartitioned `.tbl` files from a pinned TPC-H generator, or eight typed Parquet
-source tables. It uses DuckDB as a preparation tool, independently of the consuming
-engine. The official generator is obtained and run separately.
+source tables (single files or Parquet directories). DuckDB and Spark preparation
+backends implement the same logical model, independently of the consuming engine.
+The official generator is obtained and run separately.
 
-Output contains nine Parquet files and `dataset.json`: schema identity, input
+Output contains nine Parquet tables and `dataset.json`: schema identity, input
 checksums, declared source label, writer version, row counts and output checksums.
+Tables may be single files or directories of Parquet parts. A table's `sha256`
+evidence is a digest for a single file, or a filename-to-digest map for a directory.
+Artifact identity includes that physical layout; schema identity is unchanged.
 Invalid keys, orphan children, lossy typed casts and malformed numeric text fail
 before a successful dataset is declared. Existing output directories are refused.
 `--verify` checks the schema and artifact identities before import; it does not
@@ -54,10 +58,14 @@ DuckDB and Spark qualification checks load the same fixture, preserve complete
 values and validate the query answers. Snowflake templates require live
 qualification against the chosen table/loading mode before measurements.
 
-## Compatibility and next boundary
+## Runner integration and next boundary
 
-Version 2 is a separate data path. The existing `orders_nested` projection,
-depth/shape fixtures and measurement suites retain their contracts. The portable
-SQL examples do not imply that every NDC workload or its result reporter has been
-ported. Extend engine qualification and semantic result identity before making
-cross-engine performance comparisons. See [adapter usage](../engines/README.md).
+The benchmark runner uses this same lossless dataset and `orders_nested`
+table. Depth and shape fixtures extend it for their workloads. `dataset.json`
+retains the canonical contract; `inventory.json` identifies all benchmark files,
+including those fixtures. There is no separate reduced nesting projection.
+
+Portable SQL examples do not imply that every workload or result reporter has
+been ported to every engine. Extend engine qualification and semantic result
+identity before making cross-engine performance comparisons. See
+[adapter usage](../engines/README.md).

@@ -31,7 +31,7 @@ TPC-DS driver.
 
 - **Explicit membership:** `SUITE=tpch` selects 24 historical queries; `SUITE=read`
   selects 39 read/compute cases; `SUITE=all` selects 46 workloads. Custom `QUERIES`
-  overrides suite selection. Existing commands remain compatibility aliases.
+  overrides suite selection.
 - **Separate phases:** `check`, `qualify-references`, `qualify-engine`, `latency`,
   `shared-throughput`, `maintenance`, and `matrix` identify their actual work.
   Candidate qualification emits one final verdict after sizing, structural checks,
@@ -41,7 +41,7 @@ TPC-DS driver.
   the plan identity; reports reject order or coverage drift. `plan <out.json>`
   previews a matrix schedule without execution.
 - **Independent seeds:** `DATA_SEED` controls synthetic generation; `QUERY_SEED`
-  controls permutations. `SEED` remains the fallback. Fixed selectivity cases remain
+  controls permutations. Both default to 7. Fixed selectivity cases remain
   fixed; there is no implicit parameter sweep.
 
 Shared-session concurrency is a property of the Spark runner. Other engines may

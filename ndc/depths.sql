@@ -4,14 +4,13 @@
 -- Parity: CTE-per-unnest chains (chained FROM-UNNEST does not correlate over TVFs).
 -- Invariant: every depth returns the exact flat-Q6 count and revenue.
 SET threads TO 4;
-SET memory_limit='8GB';
 
 COPY (
   SELECT o_orderkey,
          list_transform(lineitems, li -> struct_pack(
              l_shipdate := li.l_shipdate, l_quantity := li.l_quantity,
              l_discount := li.l_discount, l_extendedprice := li.l_extendedprice)) AS c
-  FROM read_parquet('data/orders_nested.parquet')
+  FROM read_parquet('data/orders_nested.parquet/*.parquet')
 ) TO 'data/orders_depth1.parquet' (FORMAT parquet);
 COPY (SELECT o_orderkey, struct_pack(inner := c) AS c FROM read_parquet('data/orders_depth1.parquet')) TO 'data/orders_depth2.parquet' (FORMAT parquet);
 COPY (SELECT o_orderkey, list_value(struct_pack(inner := c)) AS c FROM read_parquet('data/orders_depth2.parquet')) TO 'data/orders_depth3.parquet' (FORMAT parquet);

@@ -1,5 +1,6 @@
 """Shared dataset contract, exercised through its public CLI and SQL adapters."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -24,19 +25,53 @@ def sql(query,cwd):
     if p.returncode:raise AssertionError(p.stderr)
     return json.loads(p.stdout) if p.stdout.strip() else []
 
+def split_orders_with_extra_column(directory):
+    (directory/'orders.parquet').rename(directory/'original-orders.parquet')
+    (directory/'orders.parquet').mkdir()
+    sql("COPY (SELECT * FROM read_parquet('original-orders.parquet') WHERE o_orderkey=1) TO 'orders.parquet/part-0.parquet';"
+        "COPY (SELECT *, 42 AS extra FROM read_parquet('original-orders.parquet') WHERE o_orderkey=2) TO 'orders.parquet/part-1.parquet';",directory)
+
 class PortableDataTests(unittest.TestCase):
+    def test_streaming_checksum_without_python311_file_digest(self):
+        script="""
+import hashlib, tempfile
+from pathlib import Path
+from generate import digest
+hashlib.file_digest=None
+with tempfile.TemporaryDirectory() as directory:
+    path=Path(directory)/'data'
+    for data in (b'', b'ndc'*(1024*1024)):
+        path.write_bytes(data)
+        assert digest(path)==hashlib.sha256(data).hexdigest()
+"""
+        subprocess.run([sys.executable,'-c',script],cwd=ROOT/'datagen',check=True)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.inputs=self.root/'input';self.inputs.mkdir()
         for table,rows in ROWS.items():(self.inputs/f'{table}.tbl').write_text('\n'.join(rows)+'\n')
-    def generate(self,out='dataset'):
-        return subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(self.inputs),'--out',str(self.root/out),'--source-label','test fixture'],capture_output=True,text=True)
+    def generate(self,out='dataset',*args,env=None):
+        return subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(self.inputs),'--out',str(self.root/out),'--source-label','test fixture',*args],capture_output=True,text=True,env=env)
+    def test_preparation_memory_configuration_and_invalid_input(self):
+        env=dict(os.environ,NDC_PREP_MEMORY='256MiB')
+        result=self.generate('env',env=env)
+        self.assertEqual(result.returncode,0,result.stderr)
+        record=json.loads((self.root/'env/dataset.json').read_text())
+        self.assertEqual(record['preparation']['memory_limit'],'256MiB')
+        result=self.generate('cli','--memory-limit','512MiB',env=env)
+        self.assertEqual(result.returncode,0,result.stderr)
+        other=json.loads((self.root/'cli/dataset.json').read_text())
+        self.assertEqual(other['preparation']['memory_limit'],'512MiB')
+        self.assertEqual(record['dataset_id'],other['dataset_id'])
+        result=self.generate('invalid','--memory-limit',"4GB'; SELECT 1; --")
+        self.assertNotEqual(result.returncode,0)
+        self.assertFalse((self.root/'invalid').exists())
     def test_lossless_roundtrip_order_empty_parent_and_metadata(self):
         p=self.generate();self.assertEqual(p.returncode,0,p.stderr)
         out=self.root/'dataset';m=json.loads((out/'dataset.json').read_text())
         self.assertEqual(m['status'],'ok');self.assertEqual(m['schema_version'],2)
-        self.assertEqual(m['tables']['orders_nested_v2']['rows'],2)
-        rows=sql("SELECT o_orderkey,o_comment,lineitems FROM read_parquet('orders_nested_v2.parquet') ORDER BY o_orderkey",out)
+        self.assertEqual(m['tables']['orders_nested']['rows'],2)
+        rows=sql("SELECT o_orderkey,o_comment,lineitems FROM read_parquet('orders_nested.parquet/*.parquet') ORDER BY o_orderkey",out)
         self.assertEqual(rows[0]['o_comment'],'order comment')
         self.assertEqual([x['l_linenumber'] for x in rows[0]['lineitems']],[1,2])
         self.assertEqual(rows[0]['lineitems'][0]['l_suppkey'],20)
@@ -58,6 +93,9 @@ class PortableDataTests(unittest.TestCase):
                 marker=self.root/out/'dataset.json'
                 self.assertEqual(json.loads(marker.read_text())['status'],'failed')
                 self.assertIn('duplicate key' if len(rows)==3 else 'orphan key',p.stderr)
+                verification=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--verify',str(marker.parent)],capture_output=True,text=True)
+                self.assertNotEqual(verification.returncode,0)
+                self.assertIn('invalid dataset contract',verification.stderr)
     def test_text_input_cannot_round_decimal_or_integer_values(self):
         for index,old,new in [(0,'20.20','20.205'),(1,'1|10|','1.5|10|')]:
             with self.subTest(value=new):
@@ -82,8 +120,60 @@ class PortableDataTests(unittest.TestCase):
         command=[sys.executable,str(ROOT/'datagen/generate.py'),'--verify',str(out)]
         p=subprocess.run(command,capture_output=True,text=True)
         self.assertEqual(p.returncode,0,p.stderr)
-        with (out/'orders_nested_v2.parquet').open('ab') as f:f.write(b'corruption')
+        with next((out/'orders_nested.parquet').glob('*.parquet')).open('ab') as f:f.write(b'corruption')
         self.assertNotEqual(subprocess.run(command,capture_output=True).returncode,0)
+
+    def test_partition_boundaries_and_missing_partition(self):
+        result=self.generate('partitioned','--key-span','1')
+        self.assertEqual(result.returncode,0,result.stderr)
+        out=self.root/'partitioned'
+        parts=sorted((out/'orders_nested.parquet').glob('*.parquet'))
+        self.assertEqual(len(parts),2)
+        self.assertEqual(sql("SELECT count(*) AS n FROM read_parquet('orders_nested.parquet/*.parquet')",out),[{'n':2}])
+        parts[0].unlink()
+        result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--verify',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('invalid table evidence',result.stderr)
+
+    def test_runner_prepares_canonical_dataset(self):
+        result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
+        (self.root/'dataset').rename(self.root/'source')
+        (self.root/'scale.txt').write_text('fixture')
+        env=dict(os.environ,NDC_IN_ENV='1',NDC_WORKSPACE=str(self.root),NDC_PREP_MEMORY='256MiB',NDC_PREP_KEY_SPAN='1')
+        for stage in ('prepare','invariants'):
+            result=subprocess.run([str(ROOT/'ndc/run.sh'),stage],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+        rows=sql("SELECT o_orderkey,o_comment,array_length(lineitems) AS children FROM read_parquet('data/orders_nested.parquet/*.parquet') ORDER BY o_orderkey",self.root)
+        self.assertEqual(rows,[{'o_orderkey':1,'o_comment':'order comment','children':2},{'o_orderkey':2,'o_comment':'empty order','children':0}])
+
+    def test_reimport_parquet_file_collections(self):
+        result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
+        out=self.root/'dataset'
+        for table in ROWS:
+            path=out/(table+'.parquet');part=out/(table+'-part.parquet')
+            path.rename(part);path.mkdir();part.rename(path/'part-00000.parquet')
+        result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(out),'--input-format','parquet','--out',str(self.root/'reimport')],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_empty_tables_and_negative_key_partition(self):
+        for case in ('empty','negative'):
+            with self.subTest(case=case):
+                for table in ('orders','lineitem'):
+                    rows=[] if case=='empty' else [('-1|'+row[2:]) if row.startswith('1|') else row for row in ROWS[table]]
+                    (self.inputs/(table+'.tbl')).write_text('\n'.join(rows)+('\n' if rows else ''))
+                result=self.generate(case,'--key-span','2')
+                self.assertEqual(result.returncode,0,result.stderr)
+                out=self.root/case
+                rows=sql("SELECT o_orderkey,array_length(lineitems) AS n FROM read_parquet('orders_nested.parquet/*.parquet') ORDER BY o_orderkey",out)
+                self.assertEqual(rows,[] if case=='empty' else [{'o_orderkey':-1,'n':2},{'o_orderkey':2,'n':0}])
+
+    def test_rejects_unmodeled_columns_in_later_parquet_parts(self):
+        result=self.generate();self.assertEqual(result.returncode,0,result.stderr)
+        out=self.root/'dataset';split_orders_with_extra_column(out)
+        result=subprocess.run([sys.executable,str(ROOT/'datagen/generate.py'),'--input',str(out),'--input-format','parquet','--out',str(self.root/'mixed')],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('unexpected source columns: orders',result.stderr)
+
 
     def test_published_ddl_matches_the_schema(self):
         for engine in ('duckdb','spark','snowflake'):
@@ -91,15 +181,15 @@ class PortableDataTests(unittest.TestCase):
             self.assertEqual(result.stdout,(ROOT/f'engines/{engine}/ddl.sql').read_text())
 
     def test_outer_adapter_preserves_null_empty_and_duplicate_elements(self):
-        setup="""CREATE TABLE orders_nested_v2(o_orderkey BIGINT,lineitems STRUCT(l_linenumber INTEGER)[]);
-        INSERT INTO orders_nested_v2 VALUES (1,NULL),(2,[]),(3,[NULL]),(4,[{'l_linenumber':1},{'l_linenumber':1}]);"""
+        setup="""CREATE TABLE orders_nested(o_orderkey BIGINT,lineitems STRUCT(l_linenumber INTEGER)[]);
+        INSERT INTO orders_nested VALUES (1,NULL),(2,[]),(3,[NULL]),(4,[{'l_linenumber':1},{'l_linenumber':1}]);"""
         query=(ROOT/'engines/duckdb/queries/outer_item_counts.sql').read_text()
         self.assertEqual(sql(setup+query,self.root),[{'o_orderkey':i,'item_count':2 if i==4 else 0} for i in range(1,5)])
 
     def test_duckdb_ddl_and_queries_use_shared_data(self):
         p=self.generate();self.assertEqual(p.returncode,0,p.stderr)
         out=self.root/'dataset';ddl=(ROOT/'engines/duckdb/ddl.sql').read_text()
-        setup=ddl+"\nINSERT INTO orders_nested_v2 SELECT * FROM read_parquet('orders_nested_v2.parquet');\n"
+        setup=ddl+"\nINSERT INTO orders_nested SELECT * FROM read_parquet('orders_nested.parquet/*.parquet');\n"
         q=(ROOT/'engines/duckdb/queries/lineitem_totals.sql').read_text()
         self.assertEqual(sql(setup+q,out),[{'o_orderkey':1,'item_count':2,'revenue':'0.5050'}])
         q=(ROOT/'engines/duckdb/queries/outer_item_counts.sql').read_text()

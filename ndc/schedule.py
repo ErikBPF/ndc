@@ -32,7 +32,6 @@ def load_manifest(root,path):
 
 
 def load_suite(root,suite):
-    if suite=='full':suite='tpch'  # Compatibility membership; the canonical suite is tpch.
     if suite not in SUITES:raise ValueError(f'unknown suite: {suite}')
     name='full' if suite=='tpch' else 'all' if suite=='read' else suite
     manifest=load_manifest(root,Path(root)/f'queries/manifest-{name}.json')

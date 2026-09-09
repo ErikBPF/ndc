@@ -7,7 +7,7 @@ This guide covers the bundled Spark runner, including Comet. Its CLI choices and
 local deployment limits describe this implementation, not the benchmark contract.
 See [other engines](../docs/engines.md) for porting requirements and implementation gaps.
 
-Run commands from the repository root. `run.sh` enters the locked Nix environment.
+Run commands from the repository root. `run.sh` enters the appropriate root devenv profile when run outside it.
 `NDC_WORKSPACE` selects data/configuration; code stays in the pinned checkout.
 
 Current runner: Spark 4.1.3, with optional DataFusion Comet 1.0.0.
@@ -17,9 +17,9 @@ Parquet update/delete are unsupported, not zero-duration successes.
 
 ## Quickstart (Linux x86-64)
 
-The bundled Spark runner requires Nix with flakes enabled, network access for initial tool/artifact downloads,
-and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java and
-ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
+The bundled Spark runner requires Nix, devenv, network access for initial
+tool/artifact downloads, and sufficient local disk. The root `spark` profile
+supplies Python, DuckDB, Java and ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
 Setup tries Apache’s CDN, then its download server and Archive, abandoning
 stalled or slow transfers and checking the pinned checksum before installation.
 Checksum mismatches fail immediately; they do not trigger a different source.
@@ -28,13 +28,14 @@ them again during setup, and extracts the runtime afresh. Extracted runtime tree
 are not restored from the CI cache.
 
 ```sh
-./ndc/run.sh check
-./ndc/run.sh setup
+devenv --profile spark shell
+just check
+just setup
 ./ndc/run.sh bootstrap 0.0083 tiny
 export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
 ./ndc/run.sh build-scale
 ./ndc/run.sh qualify-engine vanilla parquet # all 46 cases plus prerequisite gates
-nix develop "path:$PWD/nix" -c python3 tests/integration.py
+devenv --profile spark shell -- python3 tests/integration.py
 ```
 
 Defaults: `local[4]`, 8 GiB driver heap, 128 synthetic parents, maximum fan-out 64,
@@ -46,8 +47,7 @@ not a TPC publication scale.
 Use `SUITE=tpch ./ndc/run.sh latency` for serial reads,
 `./ndc/run.sh shared-throughput` for shared-session concurrency, and
 `./ndc/run.sh maintenance` for update/delete/compaction. `matrix` compares selected
-engine/format cells. `test`, `full`, `comet-default`, `throughput`, and `qualify`
-remain compatibility aliases; prefer the explicit commands above.
+engine/format cells.
 
 Every campaign freezes its SQL and execution order in `plan.json` before Spark
 starts. Reports reject missing, changed or out-of-order planned samples.
@@ -72,7 +72,7 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh shapes` | Build synthetic shapes in a fresh data directory |
 | `./ndc/run.sh build-fmt iceberg` | Prepare matched flat and nested Iceberg tables; Delta analogous |
 | `./ndc/run.sh size-check` | Check all eight TPC-H table counts against the declared scale |
-| `./ndc/run.sh invariants` | Validate exact nested-leaf bags and parent membership in DuckDB |
+| `./ndc/run.sh invariants` | Verify the canonical dataset contract and all table checksums |
 | `./ndc/run.sh parity` | Compare flat and nested reference results in DuckDB |
 | `./ndc/run.sh qualify-references` | Check the 24 tiny pins using eight independent DuckDB flat queries |
 | `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 46 candidate workloads; one `qualification.json` verdict |
@@ -81,16 +81,12 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh latency` | Serial read/compute measurement; defaults to `SUITE=read` |
 | `./ndc/run.sh maintenance` | Serial update/delete/compaction; defaults to `SUITE=maintenance` |
 | `./ndc/run.sh plan <out.json>` | Preview a frozen matrix schedule from the selected suite/settings; reject an existing file |
-| `./ndc/run.sh full` / `comet-default` | Aliases for the full matrix driver |
 | `./ndc/run.sh shared-throughput` | Concurrent read streams; defaults to the DS-inspired suite |
 | `./ndc/run.sh report <campaign>` | Validate compatibility and produce a report |
 | `./ndc/run.sh bundle <campaign>` | Archive diagnostics, measured source, metadata and checksums |
 | `./ndc/run.sh check` | Standard-library regression tests, ShellCheck, Bash syntax |
 
-`test` aliases `check`; `qualify` aliases `qualify-references`; `throughput` aliases
-`shared-throughput`. `full` and `comet-default` alias `matrix` (default all 46 cases).
-The historical 24-case suite is now named `tpch`; `SUITE=full` remains its legacy
-membership alias. Command names and suite names are separate.
+The 24-case suite is named `tpch`. Command names and suite names are separate.
 
 Candidate qualification requires an already prepared tiny workspace. It fixes one
 repetition, one stream, no warm-up, uncontrolled cache and all 46 workloads for the
@@ -110,6 +106,8 @@ or the phase commands.
 | `SPARK41_BASE` | `$HOME/ndc-spark41` | Verified distribution and JAR directory |
 | `SPARK_MASTER` | `local[4]` | Spark execution target; only local host orchestration supported |
 | `SPARK_DRIVER_MEM` | `8g` | Driver heap; also disclose native/off-heap limits |
+| `NDC_PREP_KEY_SPAN` | `250000` | Order-key range per canonical DuckDB nesting batch; smaller ranges reduce aggregation memory |
+| `NDC_PREP_MEMORY` | `8GB` | DuckDB memory limit for generation, export, nesting, invariants, parity and depth preparation; independent of Spark heap |
 | `FORMATS` | `parquet iceberg delta` | Space-separated format cells |
 | `ENGINES` | `vanilla comet` | Engine cells; default ordering alternates by format |
 | `RUNS` | `3` | Measured repetitions for matrix and measurement phases; qualification fixes one |
@@ -117,9 +115,8 @@ or the phase commands.
 | `VALIDATION` | `collect` | `distributed` validates full outputs on executors; timing modes cannot be mixed |
 | `CACHE` | `uncontrolled` | `uncontrolled`, `warm`, or explicit `cold` |
 | `LAYOUT_MODE` | `matched` | `mixed` keeps flat references as Parquet |
-| `DATA_SEED` | `SEED` or `7` | Synthetic generation seed; does not alter DuckDB TPC-H dbgen |
-| `QUERY_SEED` | `SEED` or `7` | Frozen query-permutation seed; SQL parameters stay fixed |
-| `SEED` | `7` | Legacy fallback for both independent seeds |
+| `DATA_SEED` | `7` | Synthetic generation seed; does not alter DuckDB TPC-H dbgen |
+| `QUERY_SEED` | `7` | Frozen query-permutation seed; SQL parameters stay fixed |
 | `STREAMS` | `1` (`2` for shared-throughput) | Concurrent read streams in one Spark application |
 | `PARENTS`, `FANOUT`, `WIDTH` | `128`, `64`, `8` | Synthetic shape parameters, used during build |
 | `SUITE` | `all` for matrix | `tpch`, `read`, `all`, `scan`, `compute`, `depth`, `shapes`, `ds`, `write`, `maintenance` |
@@ -155,13 +152,24 @@ SUITE=write ./ndc/run.sh matrix
 ./ndc/run.sh maintenance
 
 # Run after the tiny workspace has been built; expects deliberately wrong SQL to fail.
-nix develop "path:$PWD/nix" -c python3 tests/integration.py
+devenv --profile spark shell -- python3 tests/integration.py
 ```
 
 For scale/shape sweeps, bootstrap a different workspace for each point and set its
 build parameters. Regenerating shape files in place is rejected. Rebuilding table
 formats intentionally replaces their prepared copies and records a new physical
 identity. A stale or altered format copy fails preflight before timing.
+
+Preparation memory is configurable at execution time. Each DuckDB preparation stage
+logs its limit and stops on SQL errors. The limit is not a process memory cap;
+Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
+
+The runner exports flat inputs to `source/`, then uses the canonical importer to
+write the lossless dataset into `data/`. Nested rows stay in Parquet parts; there
+is no separate nesting implementation or final single-file assembly. The importer
+also supports [Spark preparation](../datagen/README.md#spark-preparation).
+Retain failed outputs for diagnostics and choose a fresh workspace for any retry.
+Increasing the memory limit does not establish an SF1000 preparation path.
 
 ## CI
 

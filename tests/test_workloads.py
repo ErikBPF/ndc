@@ -38,10 +38,6 @@ class WorkloadTests(unittest.TestCase):
                     self.assertTrue((ROOT/'ndc'/query['sql']).is_file())
                     self.assertTrue((ROOT/'ndc'/query['reference']).is_file())
 
-    def test_nix_environment_excludes_workspace_data(self):
-        self.assertTrue((ROOT/'nix/flake.nix').is_file(), 'Nix source must be a small dedicated directory')
-        self.assertIn('path:$ROOT/nix', (ROOT/'ndc/run.sh').read_text())
-
     def test_required_suites_exist(self):
         for name in ('scan','compute','shapes','write','maintenance','ds'):
             self.assertTrue((ROOT/f'ndc/queries/manifest-{name}.json').is_file(), name)
