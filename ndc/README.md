@@ -170,9 +170,7 @@ whose `gen.sql` contains the original `8GB` default. Each DuckDB preparation sta
 logs its limit and stops on SQL errors. The limit is not a process memory cap;
 Spark shape/format preparation still uses `SPARK_DRIVER_MEM`.
 
-The earlier [Apollo validation](../docs/apollo-validation.md) used unbounded
-nesting: SF0.5 passed at 16 GiB; SF10 nesting failed at 16 and 32 GiB, and the
-standalone importer failed at 16 GiB. The runner now nests bounded key ranges
+The runner now nests bounded key ranges
 before assembling its existing single-file output. The canonical importer also
 supports [Spark preparation](../datagen/README.md#spark-preparation).
 Retain failed outputs for diagnostics and choose a fresh workspace for any retry.

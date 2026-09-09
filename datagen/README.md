@@ -93,8 +93,12 @@ File names, compression and partitioning can differ between writers, so artifact
 IDs can differ for logically equal data. Prepare once and share those exact files
 for benchmark comparisons.
 
-The earlier [Apollo results](../docs/apollo-validation.md) describe the unbounded
-implementation. They are not a memory requirement for this partitioned version.
+Describe Spark sizing with driver CPU and memory, executor count, and CPU and
+memory per executor. For example, a configurable profile might use a 1 CPU /
+2 GiB driver and two 4 CPU / 16 GiB executors. These are example container
+resources, not validated sizing for a particular scale. Configure JVM heap and
+memory overhead within each container's memory budget. Record CPU requests and
+limits separately when they differ, and provision disk-backed scratch storage.
 
 ## Consume and qualify
 
