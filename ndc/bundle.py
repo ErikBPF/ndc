@@ -26,7 +26,7 @@ def create(campaign,source,destination):
     for folder in ('ndc','datagen','tests','docs'):
         add_tree(source/folder,'source/'+folder,{'.py','.sh','.sql','.json','.out','.csv','.conf','.md'})
     add_tree(source/'.github/workflows','source/.github/workflows',{'.yml','.yaml'})
-    for name in ('nix/flake.nix','nix/flake.lock','README.md','LICENSE','NOTICE'):
+    for name in ('devenv.nix','devenv.yaml','devenv.lock','justfile','README.md','LICENSE','NOTICE'):
         path=source/name
         if path.is_file():files['source/'+name]=path.read_bytes()
     # Ensure the supplied snapshot really matches the measured implementation.

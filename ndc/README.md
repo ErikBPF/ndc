@@ -7,7 +7,7 @@ This guide covers the bundled Spark runner, including Comet. Its CLI choices and
 local deployment limits describe this implementation, not the benchmark contract.
 See [other engines](../docs/engines.md) for porting requirements and implementation gaps.
 
-Run commands from the repository root. `run.sh` enters the locked Nix environment.
+Run commands from the repository root. `run.sh` enters the appropriate root devenv profile when run outside it.
 `NDC_WORKSPACE` selects data/configuration; code stays in the pinned checkout.
 
 Current runner: Spark 4.1.3, with optional DataFusion Comet 1.0.0.
@@ -17,9 +17,9 @@ Parquet update/delete are unsupported, not zero-duration successes.
 
 ## Quickstart (Linux x86-64)
 
-The bundled Spark runner requires Nix with flakes enabled, network access for initial tool/artifact downloads,
-and sufficient local disk. The locked Nix shell supplies Python, DuckDB, Java and
-ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
+The bundled Spark runner requires Nix, devenv, network access for initial
+tool/artifact downloads, and sufficient local disk. The root `spark` profile
+supplies Python, DuckDB, Java and ShellCheck. Engine downloads have pinned checksums in `ndc/artifacts.json`.
 Setup tries Apache’s CDN, then its download server and Archive, abandoning
 stalled or slow transfers and checking the pinned checksum before installation.
 Checksum mismatches fail immediately; they do not trigger a different source.
@@ -28,13 +28,14 @@ them again during setup, and extracts the runtime afresh. Extracted runtime tree
 are not restored from the CI cache.
 
 ```sh
-./ndc/run.sh check
-./ndc/run.sh setup
+devenv --profile spark shell
+just check
+just setup
 ./ndc/run.sh bootstrap 0.0083 tiny
 export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
 ./ndc/run.sh build-scale
 ./ndc/run.sh qualify-engine vanilla parquet # all 46 cases plus prerequisite gates
-nix develop "path:$PWD/nix" -c python3 tests/integration.py
+devenv --profile spark shell -- python3 tests/integration.py
 ```
 
 Defaults: `local[4]`, 8 GiB driver heap, 128 synthetic parents, maximum fan-out 64,
@@ -151,7 +152,7 @@ SUITE=write ./ndc/run.sh matrix
 ./ndc/run.sh maintenance
 
 # Run after the tiny workspace has been built; expects deliberately wrong SQL to fail.
-nix develop "path:$PWD/nix" -c python3 tests/integration.py
+devenv --profile spark shell -- python3 tests/integration.py
 ```
 
 For scale/shape sweeps, bootstrap a different workspace for each point and set its

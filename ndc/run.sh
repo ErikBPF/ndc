@@ -7,7 +7,12 @@ usage() { printf '%s\n' 'usage: run.sh setup|bootstrap <sf> <name>|build-scale|s
 if [[ ${1:-} == --help || ${1:-} == -h || ${1:-} == help ]]; then usage; exit 0; fi
 if [[ $# == 0 ]]; then usage; exit 2; fi
 if [[ ${NDC_IN_ENV:-} != 1 ]]; then
-  exec nix develop "path:$ROOT/nix" -c env NDC_IN_ENV=1 bash "$0" "$@"
+  profile=duckdb
+  case "$1" in
+    setup|shapes|build-fmt|build-scale|qualify-engine|spark|lite|matrix|latency|maintenance|shared-throughput|experiment) profile=spark ;;
+  esac
+  cd "$ROOT"
+  exec devenv --profile "$profile" shell -- bash "$CODE/run.sh" "$@"
 fi
 if [[ $1 == check ]]; then
   cd "$ROOT"

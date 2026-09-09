@@ -19,10 +19,10 @@ Verify the canonical dataset before loading. For DuckDB, after preparing the
 example dataset in the generator guide:
 
 ```sh
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/ddl.sql
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb -c \
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/ddl.sql
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb -c \
   "INSERT INTO orders_nested_v2 SELECT * FROM read_parquet('workspaces/shared/sf1-v2/orders_nested_v2.parquet/*.parquet');"
-nix develop path:nix -c duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/queries/lineitem_totals.sql
+devenv --profile duckdb shell -- duckdb workspaces/shared/duckdb.duckdb < engines/duckdb/queries/lineitem_totals.sql
 ```
 
 For Spark, execute its DDL in an isolated warehouse, then load the same file or directory with

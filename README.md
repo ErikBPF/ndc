@@ -13,6 +13,41 @@ Synthetic shape fixtures complement the TPC-H data; they do not alter its entiti
 > inspiration from TPC-DS and is not a compliant TPC-DS implementation. Its results
 > are not comparable to published TPC-DS results. No TPC performance metric is used.
 
+## Development environment
+
+Install Nix and [devenv](https://devenv.sh/getting-started/) (tested with 2.2.2), then
+run commands from the repository root. `devenv.nix` defines shared tooling and
+native [profiles](https://devenv.sh/profiles/); `devenv.lock` pins dependencies.
+
+| Profile | Tooling added | Inherits |
+|---|---|---|
+| Base (`devenv shell`) | Git, just | — |
+| `duckdb` | Python 3.12, DuckDB, ShellCheck, curl for downloader checks | Base |
+| `spark` | Java 17, pinned Spark runtime on PATH after setup | `duckdb` |
+| `spark-k8s` | kubectl, DevSpace | `spark` |
+
+```sh
+devenv shell                         # shared Git/just tooling
+devenv --profile duckdb shell        # data preparation and repository checks
+devenv --profile spark shell         # local Spark runner
+devenv --profile spark-k8s shell     # Spark and Kubernetes tooling
+just check                          # repository tests and shell checks
+just setup                          # explicit pinned runtime/JAR download
+```
+
+`just shell <profile>` opens a profile; `just` lists the small command set.
+The base shell installs no language runtime or engine. Profiles add tools only:
+entering a shell does not download Spark artifacts, start services, create a
+cluster, or change Kubernetes context. Use an explicit `kubectl --context ...`.
+The Kubernetes profile supplies tooling; reusable deployment manifests remain a
+separate task. Spark preparation currently requires client mode and shared paths.
+
+Add shared tools to the root `packages` list and engine-specific tools to the
+appropriate profile. Re-enter `devenv --profile <name> shell` after changes.
+`SPARK41_BASE` and `SPARK_HOME` can select an existing verified runtime location;
+Spark and optional engine/format JAR checksums remain in `ndc/artifacts.json`.
+Toolchain identity includes the root devenv files and justfile.
+
 ## What runs
 
 | Suite | Cases | Purpose |

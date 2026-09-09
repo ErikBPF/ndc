@@ -100,7 +100,8 @@ commit when available, runtime versions, JAR hashes, selected effective settings
 host/CPU/memory information, run order seed, cache treatment, and per-sample status.
 Dataset identity includes physical input file hashes and sizes. `inventory.json`
 provides that inventory. Retain physical file layout and writer versions with it.
-The dedicated `nix/` flake keeps dataset/result trees out of Nix source copies.
+Root devenv configuration declares tooling without including dataset/result trees
+as Nix build inputs. Its lockfile pins environment dependencies.
 The bundled Spark and DuckDB versions are pinned; format preparation is shared
 by vanilla Spark and Comet.
 
