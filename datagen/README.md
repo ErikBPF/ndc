@@ -19,12 +19,12 @@ eight files before import.
 From the NDC repository root:
 
 ```sh
-nix develop path:nix -c python3 datagen/generate.py \
+devenv --profile duckdb shell -- python3 datagen/generate.py \
   --input /path/to/dbgen-output \
   --out workspaces/shared/sf1-v2 \
   --source-label 'TPC-H dbgen <revision>; SF1'
 
-nix develop path:nix -c python3 datagen/generate.py \
+devenv --profile duckdb shell -- python3 datagen/generate.py \
   --verify workspaces/shared/sf1-v2
 ```
 
@@ -36,7 +36,7 @@ schema, relationships and round trips; it does not certify TPC scale cardinaliti
 Existing flat Parquet exports can also be imported:
 
 ```sh
-nix develop path:nix -c python3 datagen/generate.py \
+devenv --profile duckdb shell -- python3 datagen/generate.py \
   --input /path/to/flat-parquet --input-format parquet \
   --out workspaces/shared/converted-v2 --source-label 'source dataset identity'
 ```
@@ -67,7 +67,7 @@ without children retain the same schema and empty-array semantics.
 
 ```sh
 ./ndc/run.sh setup
-nix develop path:nix -c "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
+devenv --profile spark shell -- "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
   --master 'local[4]' --deploy-mode client --driver-memory 4g \
   --conf spark.sql.shuffle.partitions=200 \
   --conf spark.local.dir=/path/to/disk/scratch \

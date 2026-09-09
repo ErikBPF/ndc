@@ -10,6 +10,18 @@ from test_harness import ROOT, module
 
 
 class InterfaceTests(unittest.TestCase):
+    def test_runner_selects_profile_and_preserves_command_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            executable=Path(tmp)/'devenv'
+            executable.write_text(f'#!{sys.executable}\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n')
+            executable.chmod(0o755)
+            env=dict(os.environ,PATH=tmp+os.pathsep+os.environ['PATH'])
+            env.pop('NDC_IN_ENV',None)
+            for profile,args in [('duckdb',['check']),('spark',['setup']),
+                                 ('spark',['experiment','spec with spaces.json','--out','output path'])]:
+                result=subprocess.run([str(ROOT/'ndc/run.sh'),*args],env=env,capture_output=True,text=True,check=True)
+                self.assertEqual(json.loads(result.stdout),['--profile',profile,'shell','--','bash',str(ROOT/'ndc/run.sh'),*args])
+
     def test_preparation_memory_configuration_and_fails_fast(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
