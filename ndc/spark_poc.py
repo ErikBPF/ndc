@@ -84,7 +84,7 @@ def main():
     datadir=Path(a.data).resolve()
     for path in sorted(datadir.glob('*.parquet')):
         table=path.stem
-        nested=table.startswith('orders_') or table=='shape'
+        nested=table.startswith(('orders_', 'shape_depth')) or table=='shape'
         fmt=a.fmt if a.layout_mode=='matched' or nested else 'parquet'
         if fmt=='parquet': df=spark.read.parquet(str(path))
         elif fmt=='iceberg': df=spark.table(f'local_tpch.{table}')

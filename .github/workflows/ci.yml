@@ -88,9 +88,15 @@ jobs:
             --master 'local[2]' --driver-memory 2g tests/portable_spark.py
           devenv --profile spark shell -- "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
             --master 'local[2]' --driver-memory 2g tests/portable_spark.py --spark-backend
+          devenv --profile spark shell -- "$HOME/ndc-spark41/spark-4.1.3-bin-hadoop3/bin/spark-submit" \
+            --master 'local[2]' --driver-memory 2g tests/shape_depth_spark.py
+          devenv --profile spark shell -- python3 tests/shape_depth_runner.py --out workspaces/shape-depth-ci
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: ndc-qualification-${{ github.run_id }}
-          path: workspaces/tpch-ci/results/
+          path: |
+            workspaces/tpch-ci/results/
+            workspaces/shape-depth-ci/*.log
+            workspaces/shape-depth-ci/results/
           retention-days: 14
