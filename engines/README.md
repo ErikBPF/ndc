@@ -10,6 +10,10 @@ They are starter adapters, not replacements for the complete
 | Spark | [DDL](spark/ddl.sql) | [Inner](spark/queries/lineitem_totals.sql), [outer](spark/queries/outer_item_counts.sql) | `tests/portable_spark.py` |
 | Snowflake | [DDL](snowflake/ddl.sql) | [Inner](snowflake/queries/lineitem_totals.sql), [outer](snowflake/queries/outer_item_counts.sql) | Live qualification required |
 
+Comet uses the Spark dialect and the same canonical files. Its acceleration settings
+belong to execution, not the data model or query semantics. Each additional engine
+implements the shared inner/outer expansion contract in its own SQL dialect.
+
 DDL is generated from `datagen/schema.json`; regenerate a dialect with
 `python3 datagen/generate.py --ddl duckdb` (or `spark`, `snowflake`). Tests check
 that published DDL matches the schema. Nested nullability and key constraints are
@@ -39,3 +43,32 @@ The [workload contract](../datagen/workloads.json) is shared across dialects. Ke
 its semantic identity separate from SQL text and execution settings. The legacy
 reporter requires SQL-bearing manifest identity and cannot establish comparability
 between these translated queries.
+
+## Shape-depth workloads
+
+The [synthetic shape/depth family](../docs/shape-depth.md) has four operations at
+three depths and four flat controls. [Shared semantics](../datagen/shape-workloads.json)
+remain separate from dialect SQL. `python3 engines/shape_queries.py --write`
+regenerates the bounded templates: DuckDB SQL lives here in `duckdb/queries/sd_*`,
+and Spark SQL lives in the existing runner's `ndc/queries/sd_*` files. Snowflake
+translation of this family is not implemented.
+
+DuckDB: register every Parquet file as a view named after its filename, then execute
+the corresponding SQL. Spark: load those same files as temporary views. The
+[qualification script](../tests/shape_depth_spark.py) demonstrates loading and
+independent answer checks. To use the existing Spark measurement runner after
+preparing the example dataset:
+
+```sh
+printf '%s\n' synthetic-v2 > workspaces/shapes-example/scale.txt
+export NDC_WORKSPACE="$PWD/workspaces/shapes-example"
+SUITE=shape-depth FORMATS=parquet ENGINES=vanilla RUNS=1 WARMUPS=0 \
+  ./ndc/run.sh latency
+```
+
+`synthetic-v2` labels the input; it is not a TPC scale factor. Use the runtime setup
+and resource settings from [the bundled runner guide](../ndc/README.md). For warmed
+performance comparisons, use the existing `experiment` command with candidates
+configured for `SUITE=shape-depth`, `FORMATS=parquet` and this workspace. Input
+verification is enforced by the shared provenance path before measurements.
+Do not use the TPC-H-specific `qualify-engine` command for a synthetic workspace.

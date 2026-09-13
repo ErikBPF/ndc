@@ -44,6 +44,10 @@ Selectivity cases use amount thresholds 0/1/50/100 on seeded values in [0,100).
 Thresholds approximate the non-null selectivity; actual qualifying counts depend
 on seed/scale and must not be presented as exact percentages.
 
+The separate [shape/depth family](shape-depth.md) adds stable leaf identities and
+a complex-operation matrix at depths 1/3/5. Use it for controlled shape sweeps;
+the legacy `shape` and Q6 wrapper fixtures above retain their original semantics.
+
 ## Query semantics
 
 Manifest entries define `sql`, `reference`, `family`, `operation`, `layout`, and

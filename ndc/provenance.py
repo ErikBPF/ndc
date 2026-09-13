@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import sys
 
 
 def digest(path):
@@ -21,6 +22,9 @@ def identity(value):
 
 def dataset(directory):
     root=Path(directory)
+    if (root/'shape-contract.json').exists():
+        subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'datagen/shapes.py'),
+                        '--verify',str(root)],check=True,capture_output=True,text=True)
     files={str(p.relative_to(root)):{'bytes':p.stat().st_size,'sha256':digest(p)}
            for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('dataset.json','inventory.json')
            and not p.name.startswith('.')}

@@ -6,7 +6,7 @@ import random
 import re
 from provenance import identity
 
-SUITES=('tpch','read','all','scan','compute','depth','shapes','ds','write','maintenance')
+SUITES=('tpch','read','all','scan','compute','depth','shapes','ds','write','maintenance','shape-depth')
 PHASES=('matrix','latency','shared-throughput','maintenance','qualification')
 
 

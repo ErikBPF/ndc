@@ -1,0 +1,130 @@
+{
+  "sd_filter_flat": {
+    "sql": "queries/sd_filter_flat.sql",
+    "reference": "queries/sd_filter_flat.sql",
+    "family": "shape-depth",
+    "operation": "filter-aggregate",
+    "layout": "flat",
+    "ordered": true
+  },
+  "sd_filter_d1": {
+    "sql": "queries/sd_filter_d1.sql",
+    "reference": "queries/sd_filter_flat.sql",
+    "family": "shape-depth",
+    "operation": "filter-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_filter_d3": {
+    "sql": "queries/sd_filter_d3.sql",
+    "reference": "queries/sd_filter_flat.sql",
+    "family": "shape-depth",
+    "operation": "filter-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_filter_d5": {
+    "sql": "queries/sd_filter_d5.sql",
+    "reference": "queries/sd_filter_flat.sql",
+    "family": "shape-depth",
+    "operation": "filter-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_join_flat": {
+    "sql": "queries/sd_join_flat.sql",
+    "reference": "queries/sd_join_flat.sql",
+    "family": "shape-depth",
+    "operation": "join-aggregate",
+    "layout": "flat",
+    "ordered": true
+  },
+  "sd_join_d1": {
+    "sql": "queries/sd_join_d1.sql",
+    "reference": "queries/sd_join_flat.sql",
+    "family": "shape-depth",
+    "operation": "join-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_join_d3": {
+    "sql": "queries/sd_join_d3.sql",
+    "reference": "queries/sd_join_flat.sql",
+    "family": "shape-depth",
+    "operation": "join-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_join_d5": {
+    "sql": "queries/sd_join_d5.sql",
+    "reference": "queries/sd_join_flat.sql",
+    "family": "shape-depth",
+    "operation": "join-aggregate",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_topn_flat": {
+    "sql": "queries/sd_topn_flat.sql",
+    "reference": "queries/sd_topn_flat.sql",
+    "family": "shape-depth",
+    "operation": "top-n",
+    "layout": "flat",
+    "ordered": true
+  },
+  "sd_topn_d1": {
+    "sql": "queries/sd_topn_d1.sql",
+    "reference": "queries/sd_topn_flat.sql",
+    "family": "shape-depth",
+    "operation": "top-n",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_topn_d3": {
+    "sql": "queries/sd_topn_d3.sql",
+    "reference": "queries/sd_topn_flat.sql",
+    "family": "shape-depth",
+    "operation": "top-n",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_topn_d5": {
+    "sql": "queries/sd_topn_d5.sql",
+    "reference": "queries/sd_topn_flat.sql",
+    "family": "shape-depth",
+    "operation": "top-n",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_transform_flat": {
+    "sql": "queries/sd_transform_flat.sql",
+    "reference": "queries/sd_transform_flat.sql",
+    "family": "shape-depth",
+    "operation": "construct",
+    "layout": "flat",
+    "ordered": true
+  },
+  "sd_transform_d1": {
+    "sql": "queries/sd_transform_d1.sql",
+    "reference": "queries/sd_transform_flat.sql",
+    "family": "shape-depth",
+    "operation": "construct",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_transform_d3": {
+    "sql": "queries/sd_transform_d3.sql",
+    "reference": "queries/sd_transform_flat.sql",
+    "family": "shape-depth",
+    "operation": "construct",
+    "layout": "nested",
+    "ordered": true
+  },
+  "sd_transform_d5": {
+    "sql": "queries/sd_transform_d5.sql",
+    "reference": "queries/sd_transform_flat.sql",
+    "family": "shape-depth",
+    "operation": "construct",
+    "layout": "nested",
+    "ordered": true
+  }
+}

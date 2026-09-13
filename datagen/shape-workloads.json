@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "family": "synthetic-shape-depth",
+  "depths": [
+    1,
+    3,
+    5
+  ],
+  "seed_algorithm": "Scalar and shape draws: first 8 bytes, big endian, of SHA-256 over compact JSON [2, seed, identity, field]. Fixed-leaf mode uses global leaf IDs; fixed-parent mode uses (parent_id << 32) + child_position. Values are independent of RNG call order.",
+  "operations": {
+    "filter": {
+      "operation": "filter-aggregate",
+      "semantics": "Flatten leaves; count and sum amount >= 50. Empty sum is null."
+    },
+    "join": {
+      "operation": "join-aggregate",
+      "semantics": "Flatten leaves, join parents by parent_id, exclude null amounts, group by bucket; return count and sum."
+    },
+    "topn": {
+      "operation": "top-n",
+      "semantics": "Flatten leaves; per parent order non-null amounts descending, leaf_id ascending; sum up to two. Omit parents without non-null amounts."
+    },
+    "transform": {
+      "operation": "construct",
+      "semantics": "Flatten leaves; select amount >= 50, double amount, retain tag and padding, reconstruct leaf_id/adjusted/tag/padding arrays ordered by leaf_id per parent. Omit parents without selected leaves."
+    }
+  },
+  "comparison": "Exact integers, nulls and nested values; ordered result rows and arrays. Each depth retains the complete leaf bag and parent membership.",
+  "profiles": {
+    "ci": {
+      "data_seeds": [
+        7,
+        19
+      ],
+      "shape_seed": 7,
+      "parents": 9,
+      "fanout": 8,
+      "layouts": [
+        "singleton",
+        "branching"
+      ]
+    },
+    "performance": {
+      "data_seeds": [
+        7,
+        19,
+        43
+      ],
+      "shape_seed": 7,
+      "query_seed": 7
+    }
+  },
+  "padding_algorithm": "High entropy: concatenate SHA-256 hex blocks over UTF-8 Python json.dumps([2, data_seed, leaf_id, \"padding\", block]) with default separators; block indices start at zero. Truncate to width characters. Low entropy: repeat x."
+}

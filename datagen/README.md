@@ -111,3 +111,7 @@ parents, artifact verification and DuckDB query semantics. CI also runs
 [the Spark cross-engine test](../tests/portable_spark.py), both with the default
 DuckDB fixture and with `--spark-backend`. Snowflake execution needs
 its own live qualification; publishing a DDL file is not evidence of a passing run.
+
+For synthetic data with independent data/shape seeds and controlled depth sweeps,
+use the [shape/depth preparation guide](../docs/shape-depth.md). It is a separate
+family from the TPC-H importer described here.
