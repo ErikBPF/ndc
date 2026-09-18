@@ -32,8 +32,8 @@ See [harness tests](../tests/test_harness.py),
 
 - `./ndc/run.sh check`: standard-library regression tests, ShellCheck and Bash syntax.
 - `./ndc/run.sh qualify-engine vanilla parquet`: on a prepared tiny workspace,
-  sizing, structural invariants, reference pins, parity and all candidate workloads.
-  Explicitly unsupported operations remain visible in the report.
+  sizing, structural invariants, reference pins, parity and every candidate workload
+  (`all` then `flat`). Explicitly unsupported operations remain visible in the report.
 - [Wrong-answer integration test](../tests/integration.py): verifies invalid output
   fails both validity and process exit; CI executes both validation modes.
 - [Spark validation tests](../tests/spark_validation.py): nested bags, ordering,

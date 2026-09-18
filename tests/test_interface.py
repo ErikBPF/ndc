@@ -156,4 +156,19 @@ class InterfaceTests(unittest.TestCase):
             self.assertNotEqual(again.returncode,0)
             self.assertEqual(json.loads((result/'qualification.json').read_text()),summary)
 
+    def test_candidate_qualification_also_runs_the_flat_suite(self):
+        qualification=ROOT/'ndc/qualification.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); (root/'scale.txt').write_text('0.0083')
+            runner=root/'run.sh'
+            runner.write_text('#!/bin/sh\nprintf "%s\\n" "$1:$SUITE" >> "$NDC_WORKSPACE/calls"\nexit 0\n')
+            runner.chmod(0o755)
+            result=root/'qualification'
+            p=subprocess.run([sys.executable,str(qualification),'vanilla','parquet','--runner',str(runner)],
+                             env=dict(os.environ,NDC_WORKSPACE=tmp,NDC_CAMPAIGN_DIR=str(result)),capture_output=True,text=True)
+            self.assertEqual(p.returncode,0,p.stderr)
+            calls=(root/'calls').read_text().splitlines()
+            self.assertEqual(calls[-1],'matrix:flat')
+            self.assertEqual(calls[-2],'matrix:all')
+
 if __name__=='__main__':unittest.main()

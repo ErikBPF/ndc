@@ -23,8 +23,8 @@ def validate_manifest(manifest):
         if not isinstance(spec,dict) or not {'sql','reference','family','operation','layout','ordered','tables'}<=spec.keys():
             raise ValueError(f'{name}: missing explicit query contract')
         tables=spec['tables']
-        if (not isinstance(tables,list) or not tables or len(tables)!=len(set(tables))
-                or not set(tables)<=DATASET_TABLES):
+        if (not isinstance(tables,list) or not tables or not all(isinstance(t,str) for t in tables)
+                or len(tables)!=len(set(tables)) or not set(tables)<=DATASET_TABLES):
             raise ValueError(f'{name}: invalid table declaration')
 
 

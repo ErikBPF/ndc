@@ -26,18 +26,18 @@ jobs:
         run: |
           devenv shell -- bash -ec 'command -v git just'
           # Nix can intermittently fail to realise a lazily fetched nixpkgs source
-          # file ("path ... is not valid") before evaluation; a real test failure
-          # fails both attempts.
-          for attempt in 1 2; do
-            if devenv shell -- just check; then
-              break
-            fi
-            if [ "$attempt" = 2 ]; then
+          # file ("path ... is not valid") before evaluation. Retry only that
+          # signature once; every other failure exits immediately.
+          if ! devenv shell -- just check > /tmp/just-check.log 2>&1; then
+            cat /tmp/just-check.log
+            if grep -q "is not valid" /tmp/just-check.log; then
+              echo '::warning::just check hit a transient Nix store fetch error; retrying once'
+              sleep 15
+              devenv shell -- just check
+            else
               exit 1
             fi
-            echo '::warning::just check failed on attempt 1, retrying after transient Nix store fetch error'
-            sleep 15
-          done
+          fi
           devenv --profile spark shell -- bash -ec 'python3 --version; duckdb --version; java -version'
           devenv --profile spark-k8s shell -- bash -ec 'kubectl version --client; devspace version'
   integration:
