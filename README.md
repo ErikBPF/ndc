@@ -60,7 +60,7 @@ Toolchain identity includes the root devenv files and justfile.
 | `maintenance` | 3 | Update, delete, compaction; unsupported operations explicitly recorded |
 | `flat` | 8 | Flat-only TPC-H query membership; the relational counterpart of the nested variants, kept out of the nested suites |
 | `read` | 31 | All read/compute cases, excluding writes and maintenance |
-| `all` | 38 | All of the above, without counting subset manifests twice |
+| `all` | 38 | Every nested suite, without counting subset manifests twice |
 
 ## Getting started
 

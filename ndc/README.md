@@ -75,7 +75,7 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh invariants` | Verify the canonical dataset contract and all table checksums |
 | `./ndc/run.sh parity` | Compare flat and nested reference results in DuckDB |
 | `./ndc/run.sh qualify-references` | Check the 24 tiny pins (`tpch` + `flat`) using eight independent DuckDB flat queries |
-| `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 38 candidate workloads; one `qualification.json` verdict |
+| `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 38 `all` workloads and the 8 `flat` workloads; one `qualification.json` verdict |
 | `./ndc/run.sh lite` | One repetition of historical query membership on Parquet |
 | `./ndc/run.sh matrix` | Selected suite/custom manifest across formats, engines and repetitions |
 | `./ndc/run.sh latency` | Serial read/compute measurement; defaults to `SUITE=read` |

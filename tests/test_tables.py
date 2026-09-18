@@ -48,9 +48,10 @@ class TableContractTests(unittest.TestCase):
     def test_unknown_declared_table_is_rejected(self):
         api = module('schedule')
         entry = json.loads((ROOT/'ndc/queries/manifest-flat.json').read_text())['q6_flat']
-        bad = {'q6_flat': dict(entry, tables=['not_a_table'])}
-        with self.assertRaises(ValueError):
-            api.validate_manifest(bad)
+        for bad_tables in (['not_a_table'], [1], 'orders_nested', ['orders_nested', 'orders_nested']):
+            with self.subTest(tables=bad_tables):
+                with self.assertRaises(ValueError):
+                    api.validate_manifest({'q6_flat': dict(entry, tables=bad_tables)})
 
 
 if __name__ == '__main__':
