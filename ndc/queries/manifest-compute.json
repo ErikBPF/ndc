@@ -6,25 +6,12 @@
     "operation": "join-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e07_nested.out"
-  },
-  "e07_string_join": {
-    "sql": "queries/e07_string_join.sql",
-    "reference": "queries/e07_string_join.sql",
-    "family": "compute",
-    "operation": "join-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e07_string_join.out"
-  },
-  "e14_case_join": {
-    "sql": "queries/e14_case_join.sql",
-    "reference": "queries/e14_case_join.sql",
-    "family": "compute",
-    "operation": "join-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e14_case_join.out"
+    "answer": "answers/sf0.0083/e07_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested",
+      "part"
+    ]
   },
   "e14_nested": {
     "sql": "queries/e14_nested.sql",
@@ -33,7 +20,12 @@
     "operation": "join-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e14_nested.out"
+    "answer": "answers/sf0.0083/e14_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested",
+      "part"
+    ]
   },
   "e18_nested": {
     "sql": "queries/e18_nested.sql",
@@ -42,25 +34,11 @@
     "operation": "top-n",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e18_nested.out"
-  },
-  "e18_topn_window": {
-    "sql": "queries/e18_topn_window.sql",
-    "reference": "queries/e18_topn_window.sql",
-    "family": "compute",
-    "operation": "top-n",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e18_topn_window.out"
-  },
-  "e19_inlist": {
-    "sql": "queries/e19_inlist.sql",
-    "reference": "queries/e19_inlist.sql",
-    "family": "compute",
-    "operation": "aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e19_inlist.out"
+    "answer": "answers/sf0.0083/e18_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "e19_nested_array": {
     "sql": "queries/e19_nested_array.sql",
@@ -69,7 +47,11 @@
     "operation": "aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e19_nested_array.out"
+    "answer": "answers/sf0.0083/e19_nested_array.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "e21_nested": {
     "sql": "queries/e21_nested.sql",
@@ -78,15 +60,11 @@
     "operation": "quantifiers",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e21_nested.out"
-  },
-  "e21_quantifiers": {
-    "sql": "queries/e21_quantifiers.sql",
-    "reference": "queries/e21_quantifiers.sql",
-    "family": "compute",
-    "operation": "quantifiers",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e21_quantifiers.out"
+    "answer": "answers/sf0.0083/e21_nested.out",
+    "tables": [
+      "lineitem",
+      "orders",
+      "orders_nested"
+    ]
   }
 }

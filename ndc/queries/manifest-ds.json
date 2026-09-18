@@ -6,7 +6,12 @@
     "operation": "dimension-join-rank",
     "layout": "nested",
     "ordered": false,
-    "inspiration": "TPC-DS Q67: category ranking"
+    "inspiration": "TPC-DS Q67: category ranking",
+    "tables": [
+      "shape",
+      "shape_dim",
+      "shape_flat"
+    ]
   },
   "ds_channels": {
     "sql": "queries/ds_channels.sql",
@@ -15,6 +20,11 @@
     "operation": "multi-collection-union-rollup",
     "layout": "nested",
     "ordered": false,
-    "inspiration": "TPC-DS Q80: sales and returns channels"
+    "inspiration": "TPC-DS Q80: sales and returns channels",
+    "tables": [
+      "shape",
+      "shape_flat",
+      "shape_returns"
+    ]
   }
 }

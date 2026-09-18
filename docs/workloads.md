@@ -50,10 +50,19 @@ the legacy `shape` and Q6 wrapper fixtures above retain their original semantics
 
 ## Query semantics
 
-Manifest entries define `sql`, `reference`, `family`, `operation`, `layout`, and
-`ordered`, plus an optional pinned `answer`, Python `oracle`, write `action`, and
-inspiration. Report grouping uses metadata, not filename prefixes. SQL stays in
-reviewable files. Changing semantics requires changing/reviewing reference answers.
+Manifest entries define `sql`, `reference`, `family`, `operation`, `layout`,
+`ordered`, and `tables`, plus an optional pinned `answer`, Python `oracle`, write
+`action`, and inspiration. `tables` lists the dataset tables the workload SQL and
+its reference require; a run mounts only that union, so the canonical dataset is
+unchanged while unselected base tables are never loaded. Report grouping uses
+metadata, not filename prefixes. SQL stays in reviewable files. Changing
+semantics requires changing/reviewing reference answers.
+
+Flat-only TPC-H workloads — those whose SQL and reference touch no nested table —
+form the separate `flat` suite (`manifest-flat.json`); they are excluded from
+`tpch`, `all`, `scan`, and `compute`. Workloads that read flat data to build or
+join nested data (`e07_nested`, `e13_nested`, `e14_nested`, `ds_rank`,
+`s_regroup`, `w_construct`) stay in the nested suites.
 
 - E13 is a parent-column pruning control; it never reads the child array.
 - E18 sums both of the two most expensive items per order. It reports the number

@@ -1,0 +1,102 @@
+{
+  "e07_string_join": {
+    "sql": "queries/e07_string_join.sql",
+    "reference": "queries/e07_string_join.sql",
+    "family": "compute",
+    "operation": "join-aggregate",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e07_string_join.out",
+    "tables": [
+      "lineitem",
+      "part"
+    ]
+  },
+  "e13_join_coalesce": {
+    "sql": "queries/e13_join_coalesce.sql",
+    "reference": "queries/e13_join_coalesce.sql",
+    "family": "scan",
+    "operation": "parent-pruning",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e13_join_coalesce.out",
+    "tables": [
+      "customer",
+      "orders"
+    ]
+  },
+  "e14_case_join": {
+    "sql": "queries/e14_case_join.sql",
+    "reference": "queries/e14_case_join.sql",
+    "family": "compute",
+    "operation": "join-aggregate",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e14_case_join.out",
+    "tables": [
+      "lineitem",
+      "part"
+    ]
+  },
+  "e18_topn_window": {
+    "sql": "queries/e18_topn_window.sql",
+    "reference": "queries/e18_topn_window.sql",
+    "family": "compute",
+    "operation": "top-n",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e18_topn_window.out",
+    "tables": [
+      "lineitem"
+    ]
+  },
+  "e19_inlist": {
+    "sql": "queries/e19_inlist.sql",
+    "reference": "queries/e19_inlist.sql",
+    "family": "compute",
+    "operation": "aggregate",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e19_inlist.out",
+    "tables": [
+      "lineitem"
+    ]
+  },
+  "e21_quantifiers": {
+    "sql": "queries/e21_quantifiers.sql",
+    "reference": "queries/e21_quantifiers.sql",
+    "family": "compute",
+    "operation": "quantifiers",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/e21_quantifiers.out",
+    "tables": [
+      "lineitem",
+      "orders"
+    ]
+  },
+  "q1_flat": {
+    "sql": "queries/q1_flat.sql",
+    "reference": "queries/q1_flat.sql",
+    "family": "scan",
+    "operation": "aggregate",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/q1_flat.out",
+    "tables": [
+      "lineitem"
+    ]
+  },
+  "q6_flat": {
+    "sql": "queries/q6_flat.sql",
+    "reference": "queries/q6_flat.sql",
+    "family": "scan",
+    "operation": "filter-aggregate",
+    "layout": "flat",
+    "ordered": true,
+    "answer": "answers/sf0.0083/q6_flat.out",
+    "tables": [
+      "lineitem"
+    ]
+  }
+}

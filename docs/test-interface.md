@@ -29,8 +29,9 @@ TPC-DS driver.
 
 ## Implemented interface improvements
 
-- **Explicit membership:** `SUITE=tpch` selects 24 historical queries; `SUITE=read`
-  selects 39 read/compute cases; `SUITE=all` selects 46 workloads. Custom `QUERIES`
+- **Explicit membership:** `SUITE=tpch` selects 16 historical queries; `SUITE=read`
+  selects 31 read/compute cases; `SUITE=all` selects 38 workloads; `SUITE=flat`
+  selects the 8 flat-only TPC-H workloads. Custom `QUERIES`
   overrides suite selection.
 - **Separate phases:** `check`, `qualify-references`, `qualify-engine`, `latency`,
   `shared-throughput`, `maintenance`, and `matrix` identify their actual work.

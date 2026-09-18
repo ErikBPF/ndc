@@ -6,25 +6,12 @@
     "operation": "join-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e07_nested.out"
-  },
-  "e07_string_join": {
-    "sql": "queries/e07_string_join.sql",
-    "reference": "queries/e07_string_join.sql",
-    "family": "compute",
-    "operation": "join-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e07_string_join.out"
-  },
-  "e13_join_coalesce": {
-    "sql": "queries/e13_join_coalesce.sql",
-    "reference": "queries/e13_join_coalesce.sql",
-    "family": "scan",
-    "operation": "parent-pruning",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e13_join_coalesce.out"
+    "answer": "answers/sf0.0083/e07_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested",
+      "part"
+    ]
   },
   "e13_nested": {
     "sql": "queries/e13_nested.sql",
@@ -33,16 +20,12 @@
     "operation": "parent-pruning",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e13_nested.out"
-  },
-  "e14_case_join": {
-    "sql": "queries/e14_case_join.sql",
-    "reference": "queries/e14_case_join.sql",
-    "family": "compute",
-    "operation": "join-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e14_case_join.out"
+    "answer": "answers/sf0.0083/e13_nested.out",
+    "tables": [
+      "customer",
+      "orders",
+      "orders_nested"
+    ]
   },
   "e14_nested": {
     "sql": "queries/e14_nested.sql",
@@ -51,7 +34,12 @@
     "operation": "join-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e14_nested.out"
+    "answer": "answers/sf0.0083/e14_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested",
+      "part"
+    ]
   },
   "e18_nested": {
     "sql": "queries/e18_nested.sql",
@@ -60,25 +48,11 @@
     "operation": "top-n",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e18_nested.out"
-  },
-  "e18_topn_window": {
-    "sql": "queries/e18_topn_window.sql",
-    "reference": "queries/e18_topn_window.sql",
-    "family": "compute",
-    "operation": "top-n",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e18_topn_window.out"
-  },
-  "e19_inlist": {
-    "sql": "queries/e19_inlist.sql",
-    "reference": "queries/e19_inlist.sql",
-    "family": "compute",
-    "operation": "aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e19_inlist.out"
+    "answer": "answers/sf0.0083/e18_nested.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "e19_nested_array": {
     "sql": "queries/e19_nested_array.sql",
@@ -87,7 +61,11 @@
     "operation": "aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e19_nested_array.out"
+    "answer": "answers/sf0.0083/e19_nested_array.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "e21_nested": {
     "sql": "queries/e21_nested.sql",
@@ -96,25 +74,12 @@
     "operation": "quantifiers",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e21_nested.out"
-  },
-  "e21_quantifiers": {
-    "sql": "queries/e21_quantifiers.sql",
-    "reference": "queries/e21_quantifiers.sql",
-    "family": "compute",
-    "operation": "quantifiers",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e21_quantifiers.out"
-  },
-  "q1_flat": {
-    "sql": "queries/q1_flat.sql",
-    "reference": "queries/q1_flat.sql",
-    "family": "scan",
-    "operation": "aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/q1_flat.out"
+    "answer": "answers/sf0.0083/e21_nested.out",
+    "tables": [
+      "lineitem",
+      "orders",
+      "orders_nested"
+    ]
   },
   "q1_nested_explode": {
     "sql": "queries/q1_nested_explode.sql",
@@ -123,7 +88,11 @@
     "operation": "aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q1_nested_explode.out"
+    "answer": "answers/sf0.0083/q1_nested_explode.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "q6_depth1": {
     "sql": "queries/q6_depth1.sql",
@@ -132,7 +101,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth1.out"
+    "answer": "answers/sf0.0083/q6_depth1.out",
+    "tables": [
+      "lineitem",
+      "orders_depth1"
+    ]
   },
   "q6_depth2": {
     "sql": "queries/q6_depth2.sql",
@@ -141,7 +114,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth2.out"
+    "answer": "answers/sf0.0083/q6_depth2.out",
+    "tables": [
+      "lineitem",
+      "orders_depth2"
+    ]
   },
   "q6_depth3": {
     "sql": "queries/q6_depth3.sql",
@@ -150,7 +127,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth3.out"
+    "answer": "answers/sf0.0083/q6_depth3.out",
+    "tables": [
+      "lineitem",
+      "orders_depth3"
+    ]
   },
   "q6_depth4": {
     "sql": "queries/q6_depth4.sql",
@@ -159,7 +140,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth4.out"
+    "answer": "answers/sf0.0083/q6_depth4.out",
+    "tables": [
+      "lineitem",
+      "orders_depth4"
+    ]
   },
   "q6_depth5": {
     "sql": "queries/q6_depth5.sql",
@@ -168,7 +153,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth5.out"
+    "answer": "answers/sf0.0083/q6_depth5.out",
+    "tables": [
+      "lineitem",
+      "orders_depth5"
+    ]
   },
   "q6_depth6": {
     "sql": "queries/q6_depth6.sql",
@@ -177,7 +166,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth6.out"
+    "answer": "answers/sf0.0083/q6_depth6.out",
+    "tables": [
+      "lineitem",
+      "orders_depth6"
+    ]
   },
   "q6_depth7": {
     "sql": "queries/q6_depth7.sql",
@@ -186,7 +179,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth7.out"
+    "answer": "answers/sf0.0083/q6_depth7.out",
+    "tables": [
+      "lineitem",
+      "orders_depth7"
+    ]
   },
   "q6_depth8": {
     "sql": "queries/q6_depth8.sql",
@@ -195,16 +192,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth8.out"
-  },
-  "q6_flat": {
-    "sql": "queries/q6_flat.sql",
-    "reference": "queries/q6_flat.sql",
-    "family": "scan",
-    "operation": "filter-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/q6_flat.out"
+    "answer": "answers/sf0.0083/q6_depth8.out",
+    "tables": [
+      "lineitem",
+      "orders_depth8"
+    ]
   },
   "q6_nested_array": {
     "sql": "queries/q6_nested_array.sql",
@@ -213,7 +205,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_nested_array.out"
+    "answer": "answers/sf0.0083/q6_nested_array.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "s_leaf": {
     "sql": "queries/s_leaf.sql",
@@ -221,7 +217,11 @@
     "family": "scan",
     "operation": "leaf-projection",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_many": {
     "sql": "queries/s_many.sql",
@@ -229,7 +229,11 @@
     "family": "scan",
     "operation": "multi-leaf-projection",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_full": {
     "sql": "queries/s_full.sql",
@@ -238,7 +242,10 @@
     "operation": "full-materialized-read",
     "layout": "nested",
     "ordered": false,
-    "oracle": "python-shape"
+    "oracle": "python-shape",
+    "tables": [
+      "shape"
+    ]
   },
   "s_filter0": {
     "sql": "queries/s_filter0.sql",
@@ -246,7 +253,11 @@
     "family": "scan",
     "operation": "element-selectivity-0",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_filter1": {
     "sql": "queries/s_filter1.sql",
@@ -254,7 +265,11 @@
     "family": "scan",
     "operation": "element-selectivity-1",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_filter50": {
     "sql": "queries/s_filter50.sql",
@@ -262,7 +277,11 @@
     "family": "scan",
     "operation": "element-selectivity-50",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_filter100": {
     "sql": "queries/s_filter100.sql",
@@ -270,7 +289,11 @@
     "family": "scan",
     "operation": "element-selectivity-100",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_branch": {
     "sql": "queries/s_branch.sql",
@@ -278,7 +301,11 @@
     "family": "compute",
     "operation": "branching-arrays",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_zip": {
     "sql": "queries/s_zip.sql",
@@ -286,7 +313,11 @@
     "family": "compute",
     "operation": "struct-of-arrays",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_map": {
     "sql": "queries/s_map.sql",
@@ -294,7 +325,11 @@
     "family": "compute",
     "operation": "map-lookup",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_quantifiers": {
     "sql": "queries/s_quantifiers.sql",
@@ -302,7 +337,11 @@
     "family": "compute",
     "operation": "null-aware-quantifiers",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_regroup": {
     "sql": "queries/s_regroup.sql",
@@ -310,7 +349,11 @@
     "family": "compute",
     "operation": "explode-regroup",
     "layout": "flat",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "s_topn": {
     "sql": "queries/s_topn.sql",
@@ -318,7 +361,12 @@
     "family": "compute",
     "operation": "top-two-sum",
     "layout": "nested",
-    "ordered": false
+    "ordered": false,
+    "tables": [
+      "shape",
+      "shape_dim",
+      "shape_flat"
+    ]
   },
   "ds_rank": {
     "sql": "queries/ds_rank.sql",
@@ -327,7 +375,12 @@
     "operation": "dimension-join-rank",
     "layout": "nested",
     "ordered": false,
-    "inspiration": "TPC-DS Q67: category ranking"
+    "inspiration": "TPC-DS Q67: category ranking",
+    "tables": [
+      "shape",
+      "shape_dim",
+      "shape_flat"
+    ]
   },
   "ds_channels": {
     "sql": "queries/ds_channels.sql",
@@ -336,7 +389,12 @@
     "operation": "multi-collection-union-rollup",
     "layout": "nested",
     "ordered": false,
-    "inspiration": "TPC-DS Q80: sales and returns channels"
+    "inspiration": "TPC-DS Q80: sales and returns channels",
+    "tables": [
+      "shape",
+      "shape_flat",
+      "shape_returns"
+    ]
   },
   "w_materialize": {
     "sql": "queries/w_materialize.sql",
@@ -345,7 +403,10 @@
     "operation": "materialize",
     "layout": "nested",
     "ordered": false,
-    "action": "materialize"
+    "action": "materialize",
+    "tables": [
+      "shape"
+    ]
   },
   "w_transform": {
     "sql": "queries/w_transform.sql",
@@ -354,7 +415,10 @@
     "operation": "nested-transform",
     "layout": "nested",
     "ordered": false,
-    "action": "materialize"
+    "action": "materialize",
+    "tables": [
+      "shape"
+    ]
   },
   "w_construct": {
     "sql": "queries/w_construct.sql",
@@ -363,7 +427,11 @@
     "operation": "flat-to-nested",
     "layout": "flat",
     "ordered": false,
-    "action": "materialize"
+    "action": "materialize",
+    "tables": [
+      "shape",
+      "shape_flat"
+    ]
   },
   "w_append": {
     "sql": "queries/w_append.sql",
@@ -372,7 +440,10 @@
     "operation": "append",
     "layout": "nested",
     "ordered": false,
-    "action": "append"
+    "action": "append",
+    "tables": [
+      "shape"
+    ]
   },
   "w_update": {
     "sql": "queries/w_update.sql",
@@ -381,7 +452,10 @@
     "operation": "update",
     "layout": "nested",
     "ordered": false,
-    "action": "update"
+    "action": "update",
+    "tables": [
+      "shape"
+    ]
   },
   "w_delete": {
     "sql": "queries/w_delete.sql",
@@ -390,7 +464,10 @@
     "operation": "delete",
     "layout": "nested",
     "ordered": false,
-    "action": "delete"
+    "action": "delete",
+    "tables": [
+      "shape"
+    ]
   },
   "w_compact": {
     "sql": "queries/w_compact.sql",
@@ -399,6 +476,9 @@
     "operation": "compact",
     "layout": "nested",
     "ordered": false,
-    "action": "compact"
+    "action": "compact",
+    "tables": [
+      "shape"
+    ]
   }
 }

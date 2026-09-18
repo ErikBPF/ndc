@@ -155,7 +155,7 @@ class ReportTests(unittest.TestCase):
 
     def test_execution_order_must_match_plan(self):
         def mutate(c,e):
-            c['manifest']={'q6_flat':module('schedule').load_suite(ROOT/'ndc','scan')['q6_flat']}
+            c['manifest']={'q6_flat':module('schedule').load_suite(ROOT/'ndc','flat')['q6_flat']}
             c['manifest_id']=module('provenance').identity(c['manifest'])
             c['comparison'].update(runs=2,warmups=0,seed=7,phase='matrix',stream_model='serial')
             c['plan']=module('schedule').build_plan(c['manifest'],runs=2,streams=1,warmups=0,seed=7)

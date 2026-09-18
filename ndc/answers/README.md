@@ -9,7 +9,7 @@ The original answer files lack recorded engine/tool provenance. They are not
 independently regenerated historical evidence. The suite verifies every pin by executing
 eight distinct flat-reference queries with the pinned DuckDB against freshly
 built sf0.0083 data (`./ndc/run.sh qualify-references`). The Spark runners then
-verify every one of the 24 query variants against these pins.
+verify every one of the 24 query variants (`tpch` + `flat`) against these pins.
 
 Pinned semantics:
 

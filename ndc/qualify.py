@@ -20,7 +20,9 @@ def rows(text):
 
 def main():
     code=Path(__file__).resolve().parent
-    manifest=json.loads((code/'queries/manifest-full.json').read_text())
+    manifest={}
+    for name in ('full','flat'):
+        manifest.update(json.loads((code/f'queries/manifest-{name}.json').read_text()))
     cache={}
     for name,spec in manifest.items():
         reference=spec['reference']

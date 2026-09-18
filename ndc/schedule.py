@@ -6,8 +6,13 @@ import random
 import re
 from provenance import identity
 
-SUITES=('tpch','read','all','scan','compute','depth','shapes','ds','write','maintenance','shape-depth')
+SUITES=('tpch','read','all','scan','compute','depth','shapes','ds','write','maintenance','shape-depth','flat')
 PHASES=('matrix','latency','shared-throughput','maintenance','qualification')
+DATASET_TABLES=frozenset((
+    'region','nation','supplier','customer','part','partsupp','orders','lineitem','orders_nested',
+    *(f'orders_depth{i}' for i in range(1,9)),
+    'shape','shape_flat','shape_returns','shape_dim','shape_leaves_v2','shape_parents_v2',
+    'shape_depth1_v2','shape_depth3_v2','shape_depth5_v2'))
 
 
 def validate_manifest(manifest):
@@ -15,8 +20,17 @@ def validate_manifest(manifest):
     for name,spec in manifest.items():
         if not isinstance(name,str) or not re.fullmatch(r'[a-z][a-z0-9_]*',name):
             raise ValueError('invalid query name')
-        if not isinstance(spec,dict) or not {'sql','reference','family','operation','layout','ordered'}<=spec.keys():
+        if not isinstance(spec,dict) or not {'sql','reference','family','operation','layout','ordered','tables'}<=spec.keys():
             raise ValueError(f'{name}: missing explicit query contract')
+        tables=spec['tables']
+        if (not isinstance(tables,list) or not tables or len(tables)!=len(set(tables))
+                or not set(tables)<=DATASET_TABLES):
+            raise ValueError(f'{name}: invalid table declaration')
+
+
+def required_tables(manifest):
+    validate_manifest(manifest)
+    return sorted({table for spec in manifest.values() for table in spec['tables']})
 
 
 def load_manifest(root,path):

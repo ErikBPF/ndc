@@ -63,7 +63,10 @@ qualification against the chosen table/loading mode before measurements.
 The benchmark runner uses this same lossless dataset and `orders_nested`
 table. Depth and shape fixtures extend it for their workloads. `dataset.json`
 retains the canonical contract; `inventory.json` identifies all benchmark files,
-including those fixtures. There is no separate reduced nesting projection.
+including those fixtures. There is no separate reduced nesting projection. A run
+mounts only the tables its selected workloads declare in `tables` (the workload
+SQL plus its reference); the canonical dataset itself is unchanged, so unselected
+base tables are simply not loaded.
 
 Portable SQL examples do not imply that every workload or result reporter has
 been ported to every engine. Extend engine qualification and semantic result

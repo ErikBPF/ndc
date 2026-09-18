@@ -12,7 +12,7 @@ import uuid
 from pyspark.sql import SparkSession
 
 from mutations import inventory, prepare, unsupported_reason
-from schedule import build_plan, load_manifest, validate_plan, PHASES
+from schedule import build_plan, load_manifest, required_tables, validate_plan, PHASES
 from provenance import dataset, environment, identity, plans, format_identity, limits
 from shapes import full_answer, iter_full_answer
 from validation import canonical, read_answer, validate, materialize, distributed_validate
@@ -82,8 +82,12 @@ def main():
         for name in ('validation.py','provenance.py','shapes.py','mutations.py'):
             spark.sparkContext.addPyFile(str(root/'ndc'/name))
     datadir=Path(a.data).resolve()
-    for path in sorted(datadir.glob('*.parquet')):
-        table=path.stem
+    available={path.stem:path for path in datadir.glob('*.parquet')}
+    needed=required_tables(manifest)
+    missing=sorted(set(needed)-set(available))
+    if missing:raise ValueError(f'missing benchmark tables in {datadir}: {missing}')
+    for table in needed:
+        path=available[table]
         nested=table.startswith(('orders_', 'shape_depth')) or table=='shape'
         fmt=a.fmt if a.layout_mode=='matched' or nested else 'parquet'
         if fmt=='parquet': df=spark.read.parquet(str(path))

@@ -42,11 +42,14 @@ class InterfaceTests(unittest.TestCase):
 
     def test_suites_distinguish_historical_reads_and_all(self):
         api=module('schedule')
-        self.assertEqual(len(api.load_suite(ROOT/'ndc','tpch')),24)
-        self.assertEqual(len(api.load_suite(ROOT/'ndc','all')),46)
+        self.assertEqual(len(api.load_suite(ROOT/'ndc','tpch')),16)
+        self.assertEqual(len(api.load_suite(ROOT/'ndc','all')),38)
         reads=api.load_suite(ROOT/'ndc','read')
-        self.assertEqual(len(reads),39)
+        self.assertEqual(len(reads),31)
         self.assertFalse(any('action' in spec for spec in reads.values()))
+        flat=api.load_suite(ROOT/'ndc','flat')
+        self.assertEqual(len(flat),8)
+        self.assertFalse(set(api.load_suite(ROOT/'ndc','all')) & set(flat))
         for invalid in ('../all','full'):
             with self.assertRaises(ValueError):api.load_suite(ROOT/'ndc',invalid)
 
@@ -91,7 +94,7 @@ class InterfaceTests(unittest.TestCase):
                 plans.append(json.loads(path.read_text()))
             self.assertEqual(plans[0],plans[1])
             self.assertEqual(plans[0]['settings']['seed'],11)
-            self.assertEqual(len(plans[0]['samples']),48)
+            self.assertEqual(len(plans[0]['samples']),32)
             p=subprocess.run([str(ROOT/'ndc/run.sh'),'plan',str(root/'plan0.json')],
                              env=env,capture_output=True,text=True)
             self.assertNotEqual(p.returncode,0)
