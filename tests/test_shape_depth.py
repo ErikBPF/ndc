@@ -114,6 +114,12 @@ class ShapeDepthTests(unittest.TestCase):
                     name=f'sd_{op}_'+('flat' if depth is None else f'd{depth}')
                     self.assertEqual((directory/(name+'.sql')).read_text(),shape_queries.query(engine,op,depth))
 
+    def test_published_manifest_matches_renderer(self):
+        sys.path.insert(0,str(ROOT/'engines'))
+        import shape_queries
+        published=json.loads((ROOT/'ndc/queries/manifest-shape-depth.json').read_text())
+        self.assertEqual(published,shape_queries.manifest_entries())
+
     def test_data_and_shape_seeds_are_independent(self):
         with tempfile.TemporaryDirectory() as tmp:
             populations=[]

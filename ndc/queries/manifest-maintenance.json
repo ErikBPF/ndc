@@ -6,7 +6,10 @@
     "operation": "update",
     "layout": "nested",
     "ordered": false,
-    "action": "update"
+    "action": "update",
+    "tables": [
+      "shape"
+    ]
   },
   "w_delete": {
     "sql": "queries/w_delete.sql",
@@ -15,7 +18,10 @@
     "operation": "delete",
     "layout": "nested",
     "ordered": false,
-    "action": "delete"
+    "action": "delete",
+    "tables": [
+      "shape"
+    ]
   },
   "w_compact": {
     "sql": "queries/w_compact.sql",
@@ -24,6 +30,9 @@
     "operation": "compact",
     "layout": "nested",
     "ordered": false,
-    "action": "compact"
+    "action": "compact",
+    "tables": [
+      "shape"
+    ]
   }
 }

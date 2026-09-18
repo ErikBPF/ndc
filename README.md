@@ -52,14 +52,15 @@ Toolchain identity includes the root devenv files and justfile.
 
 | Suite | Cases | Purpose |
 |---|---:|---|
-| `tpch` | 24 | Historical TPC-H-derived query membership; corrected complete validation and top-N semantics |
+| `tpch` | 16 | Historical TPC-H-derived query membership; corrected complete validation and top-N semantics |
 | `scan` / `compute` / `depth` | subsets of `tpch` | Projection controls, manipulation, and singleton-wrapper depth isolation |
 | `shapes` | 13 | Leaf/multiple/full projection, selectivity, nulls, fan-out, branching, maps, zipped arrays, quantifiers, regrouping, top-N |
 | `ds` | 2 | Dimension join + ranking; sales/returns collections + union + rollup |
 | `write` | 4 | Fresh materialization, nested transformation, flat-to-nested construction, append |
 | `maintenance` | 3 | Update, delete, compaction; unsupported operations explicitly recorded |
-| `read` | 39 | All read/compute cases, excluding writes and maintenance |
-| `all` | 46 | All of the above, without counting subset manifests twice |
+| `flat` | 8 | Flat-only TPC-H query membership; the relational counterpart of the nested variants, kept out of the nested suites |
+| `read` | 31 | All read/compute cases, excluding writes and maintenance |
+| `all` | 38 | All of the above, without counting subset manifests twice |
 
 ## Getting started
 

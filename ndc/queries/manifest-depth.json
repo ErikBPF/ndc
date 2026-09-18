@@ -6,7 +6,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth1.out"
+    "answer": "answers/sf0.0083/q6_depth1.out",
+    "tables": [
+      "lineitem",
+      "orders_depth1"
+    ]
   },
   "q6_depth2": {
     "sql": "queries/q6_depth2.sql",
@@ -15,7 +19,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth2.out"
+    "answer": "answers/sf0.0083/q6_depth2.out",
+    "tables": [
+      "lineitem",
+      "orders_depth2"
+    ]
   },
   "q6_depth3": {
     "sql": "queries/q6_depth3.sql",
@@ -24,7 +32,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth3.out"
+    "answer": "answers/sf0.0083/q6_depth3.out",
+    "tables": [
+      "lineitem",
+      "orders_depth3"
+    ]
   },
   "q6_depth4": {
     "sql": "queries/q6_depth4.sql",
@@ -33,7 +45,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth4.out"
+    "answer": "answers/sf0.0083/q6_depth4.out",
+    "tables": [
+      "lineitem",
+      "orders_depth4"
+    ]
   },
   "q6_depth5": {
     "sql": "queries/q6_depth5.sql",
@@ -42,7 +58,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth5.out"
+    "answer": "answers/sf0.0083/q6_depth5.out",
+    "tables": [
+      "lineitem",
+      "orders_depth5"
+    ]
   },
   "q6_depth6": {
     "sql": "queries/q6_depth6.sql",
@@ -51,7 +71,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth6.out"
+    "answer": "answers/sf0.0083/q6_depth6.out",
+    "tables": [
+      "lineitem",
+      "orders_depth6"
+    ]
   },
   "q6_depth7": {
     "sql": "queries/q6_depth7.sql",
@@ -60,7 +84,11 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth7.out"
+    "answer": "answers/sf0.0083/q6_depth7.out",
+    "tables": [
+      "lineitem",
+      "orders_depth7"
+    ]
   },
   "q6_depth8": {
     "sql": "queries/q6_depth8.sql",
@@ -69,6 +97,10 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_depth8.out"
+    "answer": "answers/sf0.0083/q6_depth8.out",
+    "tables": [
+      "lineitem",
+      "orders_depth8"
+    ]
   }
 }

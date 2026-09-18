@@ -49,7 +49,8 @@ between these translated queries.
 The [synthetic shape/depth family](../docs/shape-depth.md) has four operations at
 three depths and four flat controls. [Shared semantics](../datagen/shape-workloads.json)
 remain separate from dialect SQL. `python3 engines/shape_queries.py --write`
-regenerates the bounded templates: DuckDB SQL lives here in `duckdb/queries/sd_*`,
+regenerates the bounded templates (and the `manifest-shape-depth.json` table
+declarations): DuckDB SQL lives here in `duckdb/queries/sd_*`,
 and Spark SQL lives in the existing runner's `ndc/queries/sd_*` files. Snowflake
 translation of this family is not implemented.
 

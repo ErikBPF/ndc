@@ -7,6 +7,8 @@ ROOT=Path(__file__).resolve().parents[1]
 CONTRACT=json.loads((ROOT/'datagen/shape-workloads.json').read_text())
 DEPTHS=tuple(CONTRACT['depths'])
 OPERATIONS={op:spec['operation'] for op,spec in CONTRACT['operations'].items()}
+REFERENCE_TABLES={'filter':('shape_leaves_v2',),'join':('shape_leaves_v2','shape_parents_v2'),
+                  'topn':('shape_leaves_v2',),'transform':('shape_leaves_v2',)}
 
 
 def query(engine, operation, depth=None):
@@ -41,9 +43,20 @@ def write():
                     (ROOT/f'engines/{engine}/queries/{name}.sql').write_text(text)
                 if engine=='spark':
                     (ROOT/f'ndc/queries/{name}.sql').write_text(text)
-                    manifest[name]=dict(sql=f'queries/{name}.sql',reference=f'queries/sd_{op}_flat.sql',
-                                        family='shape-depth',operation=OPERATIONS[op],layout='flat' if depth is None else 'nested',ordered=True)
-    (ROOT/'ndc/queries/manifest-shape-depth.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (ROOT/'ndc/queries/manifest-shape-depth.json').write_text(json.dumps(manifest_entries(),indent=2)+'\n')
+
+
+def manifest_entries():
+    """The shape-depth manifest; tables are the flat reference plus the depth source."""
+    entries={}
+    for op in OPERATIONS:
+        for depth in (None,*DEPTHS):
+            name=f'sd_{op}_'+('flat' if depth is None else f'd{depth}')
+            source='shape_leaves_v2' if depth is None else f'shape_depth{depth}_v2'
+            entries[name]=dict(sql=f'queries/{name}.sql',reference=f'queries/sd_{op}_flat.sql',
+                               family='shape-depth',operation=OPERATIONS[op],layout='flat' if depth is None else 'nested',
+                               ordered=True,tables=sorted({source,*REFERENCE_TABLES[op]}))
+    return entries
 
 
 if __name__=='__main__':

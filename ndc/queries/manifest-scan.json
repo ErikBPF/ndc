@@ -1,13 +1,4 @@
 {
-  "e13_join_coalesce": {
-    "sql": "queries/e13_join_coalesce.sql",
-    "reference": "queries/e13_join_coalesce.sql",
-    "family": "scan",
-    "operation": "parent-pruning",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/e13_join_coalesce.out"
-  },
   "e13_nested": {
     "sql": "queries/e13_nested.sql",
     "reference": "queries/e13_join_coalesce.sql",
@@ -15,16 +6,12 @@
     "operation": "parent-pruning",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/e13_nested.out"
-  },
-  "q1_flat": {
-    "sql": "queries/q1_flat.sql",
-    "reference": "queries/q1_flat.sql",
-    "family": "scan",
-    "operation": "aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/q1_flat.out"
+    "answer": "answers/sf0.0083/e13_nested.out",
+    "tables": [
+      "customer",
+      "orders",
+      "orders_nested"
+    ]
   },
   "q1_nested_explode": {
     "sql": "queries/q1_nested_explode.sql",
@@ -33,16 +20,11 @@
     "operation": "aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q1_nested_explode.out"
-  },
-  "q6_flat": {
-    "sql": "queries/q6_flat.sql",
-    "reference": "queries/q6_flat.sql",
-    "family": "scan",
-    "operation": "filter-aggregate",
-    "layout": "flat",
-    "ordered": true,
-    "answer": "answers/sf0.0083/q6_flat.out"
+    "answer": "answers/sf0.0083/q1_nested_explode.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   },
   "q6_nested_array": {
     "sql": "queries/q6_nested_array.sql",
@@ -51,6 +33,10 @@
     "operation": "filter-aggregate",
     "layout": "nested",
     "ordered": true,
-    "answer": "answers/sf0.0083/q6_nested_array.out"
+    "answer": "answers/sf0.0083/q6_nested_array.out",
+    "tables": [
+      "lineitem",
+      "orders_nested"
+    ]
   }
 }

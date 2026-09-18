@@ -34,7 +34,7 @@ just setup
 ./ndc/run.sh bootstrap 0.0083 tiny
 export NDC_WORKSPACE="$PWD/workspaces/tpch-tiny"
 ./ndc/run.sh build-scale
-./ndc/run.sh qualify-engine vanilla parquet # all 46 cases plus prerequisite gates
+./ndc/run.sh qualify-engine vanilla parquet # all 38 cases plus prerequisite gates
 devenv --profile spark shell -- python3 tests/integration.py
 ```
 
@@ -74,8 +74,8 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh size-check` | Check all eight TPC-H table counts against the declared scale |
 | `./ndc/run.sh invariants` | Verify the canonical dataset contract and all table checksums |
 | `./ndc/run.sh parity` | Compare flat and nested reference results in DuckDB |
-| `./ndc/run.sh qualify-references` | Check the 24 tiny pins using eight independent DuckDB flat queries |
-| `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 46 candidate workloads; one `qualification.json` verdict |
+| `./ndc/run.sh qualify-references` | Check the 24 tiny pins (`tpch` + `flat`) using eight independent DuckDB flat queries |
+| `./ndc/run.sh qualify-engine <engine> [fmt]` | On prepared sf0.0083 data: sizing, structural invariants, reference pins, parity, then all 38 candidate workloads; one `qualification.json` verdict |
 | `./ndc/run.sh lite` | One repetition of historical query membership on Parquet |
 | `./ndc/run.sh matrix` | Selected suite/custom manifest across formats, engines and repetitions |
 | `./ndc/run.sh latency` | Serial read/compute measurement; defaults to `SUITE=read` |
@@ -86,10 +86,10 @@ sources `bench.conf`; use only trusted workspaces and candidate artifacts.
 | `./ndc/run.sh bundle <campaign>` | Archive diagnostics, measured source, metadata and checksums |
 | `./ndc/run.sh check` | Standard-library regression tests, ShellCheck, Bash syntax |
 
-The 24-case suite is named `tpch`. Command names and suite names are separate.
+The 16-case nested suite is named `tpch`; the 8 flat-only workloads form `flat`. Command names and suite names are separate.
 
 Candidate qualification requires an already prepared tiny workspace. It fixes one
-repetition, one stream, no warm-up, uncontrolled cache and all 46 workloads for the
+repetition, one stream, no warm-up, uncontrolled cache and all 38 workloads for the
 selected candidate. `NDC_CAMPAIGN_DIR`, if provided, names a fresh qualification
 root; its engine campaign lives under `campaign/`. Bundle that child campaign to
 include the qualification summary and gate logs. Each gate has a log, and failures
@@ -119,7 +119,7 @@ or the phase commands.
 | `QUERY_SEED` | `7` | Frozen query-permutation seed; SQL parameters stay fixed |
 | `STREAMS` | `1` (`2` for shared-throughput) | Concurrent read streams in one Spark application |
 | `PARENTS`, `FANOUT`, `WIDTH` | `128`, `64`, `8` | Synthetic shape parameters, used during build |
-| `SUITE` | `all` for matrix | `tpch`, `read`, `all`, `scan`, `compute`, `depth`, `shapes`, `shape-depth`, `ds`, `write`, `maintenance` |
+| `SUITE` | `all` for matrix | `tpch`, `read`, `all`, `scan`, `compute`, `depth`, `shapes`, `shape-depth`, `ds`, `write`, `maintenance`, `flat` |
 | `QUERIES` | Unset | Optional absolute custom manifest path; overrides `SUITE` |
 | `NDC_CAMPAIGN_DIR` | Unique timestamp/UUID path | Optional explicit fresh output directory |
 
